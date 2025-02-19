@@ -1,15 +1,12 @@
 #include "arc_curves.h"
 
-#include <algorithm>
-#include <cassert>
-#include <tuple>
+#include <utility>
 
 double distance(double x1, double y1, double x2, double y2)
 {
     return std::sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 }
 
-//
 double getPositiveHeading(double hdg)
 {
     while (hdg < 0.0)
@@ -205,4 +202,113 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
     double curvature = -deltaHdg / length;
 
     return {x1, y1, x2, y2, curvature, length};
+}
+
+std::tuple<double, double, double> getArcEndPosition(double curvature, double length, double xstart, double ystart,
+                                                     double hdg_start)
+{
+    double deltaHdg = curvature * length;
+    double hdg_end = deltaHdg + hdg_start;
+
+    double x_end, y_end;
+
+    if (std::abs(curvature) > 0.0001)
+    {
+        double radius = length / deltaHdg;
+        double x_M, y_M;
+
+        if (curvature < 0.0)
+        {
+            x_M = std::cos(hdg_start + M_PI / 2.0) * radius + xstart;
+            y_M = std::sin(hdg_start + M_PI / 2.0) * radius + ystart;
+            x_end = std::cos(hdg_start - M_PI / 2.0 + deltaHdg) * radius + x_M;
+            y_end = std::sin(hdg_start - M_PI / 2.0 + deltaHdg) * radius + y_M;
+        } else
+        {
+            x_M = std::cos(hdg_start + M_PI / 2.0) * radius + xstart;
+            y_M = std::sin(hdg_start + M_PI / 2.0) * radius + ystart;
+            x_end = std::cos(hdg_start - M_PI / 2.0 + deltaHdg) * radius + x_M;
+            y_end = std::sin(hdg_start - M_PI / 2.0 + deltaHdg) * radius + y_M;
+        }
+    } else
+    {
+        x_end = std::cos(hdg_start) * length + xstart;
+        y_end = std::sin(hdg_start) * length + ystart;
+    }
+
+    return {x_end, y_end, getPositiveHeading(hdg_end)};
+}
+
+// 一元三次曲线拟合函数
+Vector4d fitCubicSpline(const vector<Vector2d>& points)
+{
+    int n = points.size();
+    MatrixXd A(n, 4);
+    VectorXd b(n);
+
+    // 构造方程 Ax = b，其中A为设计矩阵，b为结果向量
+    for (int i = 0; i < n; ++i)
+    {
+        double x = points[i][0];
+        A(i, 0) = 1;
+        A(i, 1) = x;
+        A(i, 2) = x * x;
+        A(i, 3) = x * x * x;
+        b(i) = points[i][1];
+    }
+
+    // 使用最小二乘法解线性方程 Ax = b，得到拟合的系数
+    Vector4d coeff = A.colPivHouseholderQr().solve(b);
+    return coeff;
+}
+
+// 计算点到拟合曲线的距离
+double computeDistance(const Vector2d& point, const Vector4d& coeff)
+{
+    double x = point[0];
+    // 曲线方程 y = a + b*x + c*x^2 + d*x^3
+    double y_fit = coeff[0] + coeff[1] * x + coeff[2] * x * x + coeff[3] * x * x * x;
+    return std::abs(y_fit - point[1]);
+}
+
+// 主算法函数
+void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<int, Vector4d>>& widths,
+                       int index_offset)
+{
+    if (points.size() < 2) return;  // 最少需要两个点才能拟合曲线
+
+    // 拟合一元三次曲线
+    Vector4d coeff = fitCubicSpline(points);
+
+    // 计算所有点到拟合曲线的距离
+    vector<double> distances;
+    for (const auto& point : points)
+    {
+        distances.push_back(computeDistance(point, coeff));
+    }
+
+    // 找到最大误差的点
+    auto max_it = max_element(distances.begin(), distances.end());
+    double max_distance = *max_it;
+    int max_index = distance(distances.begin(), max_it);
+
+    // 如果最大误差小于阈值，则算法结束
+    if (max_distance < threshold)
+    {
+        // std::cout << "拟合成功，误差小于阈值。" << std::endl;
+        // std::cout << points.front() << "\n" << points.back() << std::endl;
+        // std::cout << "coeff: \n" << coeff << std::endl;
+        widths.push_back({index_offset, coeff});
+        return;
+    }
+
+    // 否则，分割曲线并递归处理
+    vector<Vector2d> left_points(points.begin(), points.begin() + max_index + 1);
+    vector<Vector2d> right_points(points.begin() + max_index, points.end());
+
+    // std::cout << "分割曲线，左部分点数：" << left_points.size() << "，右部分点数：" << right_points.size() <<
+    // std::endl;
+
+    recursiveFitWidth(left_points, threshold, widths, 0);
+    recursiveFitWidth(right_points, threshold, widths, index_offset + max_index);
 }

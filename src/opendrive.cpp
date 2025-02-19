@@ -1,8 +1,12 @@
-#include "opendrive.h"
+#include <iostream>
+#include <limits>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include <tinyxml2.h>
 
-#include <iostream>
+#include "opendrive.h"
 
 #include "arc_curves.h"
 
@@ -43,31 +47,7 @@ tinyxml2::XMLElement* RefLine::to_planView_xml(tinyxml2::XMLDocument& doc)
     return planView;
 }
 
-tinyxml2::XMLElement* Lane::to_lane_xml(tinyxml2::XMLDocument& doc)
-{
-    tinyxml2::XMLElement* lane = doc.NewElement("lane");
-    lane->SetAttribute("id", id_);
-    lane->SetAttribute("type", type_.c_str());
-    lane->SetAttribute("level", "false");
-    auto link = doc.NewElement("link");
-    lane->InsertEndChild(link);
-    auto width = doc.NewElement("width");
-    width->SetAttribute("sOffset", 0.0);
-    width->SetAttribute("a", width_);
-    width->SetAttribute("b", 0.0);
-    width->SetAttribute("c", 0.0);
-    width->SetAttribute("d", 0.0);
-    lane->InsertEndChild(width);
-    return lane;
-}
-
-Road::Road(const PointVec& refline_points)
-{
-    refline_ptr_ = std::make_shared<RefLine>();
-    fit(refline_points);
-}
-
-void Road::fit(const PointVec& refline_points)
+double RefLine::fit(const PointVec& refline_points)
 {
     double s = 0.0;
 
@@ -109,21 +89,34 @@ void Road::fit(const PointVec& refline_points)
             line->hdg = hdg;
             line->length = distance(x1, y1, xarc, yarc);
             s += line->length;
-            refline_ptr_->reflines.push_back(line);
+            reflines.push_back(line);
         }
 
         std::cout << "xstart: " << xarc << " ystart: " << yarc << " length: " << length << " heading: " << hdg
                   << " curvature: " << curvature << std::endl;
 
-        auto arc = std::make_shared<ArcLine>();
-        arc->s = s;
-        arc->x = xarc;
-        arc->y = yarc;
-        arc->hdg = hdg;
-        arc->length = length;
-        arc->curvature = curvature;
-        s += arc->length;
-        refline_ptr_->reflines.push_back(arc);
+        if (std::abs(curvature) < 0.0001)
+        {
+            auto line = std::make_shared<StraightLine>();
+            line->s = s;
+            line->x = xarc;
+            line->y = yarc;
+            line->hdg = hdg;
+            line->length = length;
+            s += line->length;
+            reflines.push_back(line);
+        } else
+        {
+            auto arc = std::make_shared<ArcLine>();
+            arc->s = s;
+            arc->x = xarc;
+            arc->y = yarc;
+            arc->hdg = hdg;
+            arc->length = length;
+            arc->curvature = curvature;
+            s += arc->length;
+            reflines.push_back(arc);
+        }
 
         if (distance(xendline, yendline, x3, y3) > 0.1)
         {
@@ -138,21 +131,145 @@ void Road::fit(const PointVec& refline_points)
             line->hdg = giveHeading(xendline, yendline, x3, y3);
             line->length = distance(xendline, yendline, x3, y3);
             s += line->length;
-            refline_ptr_->reflines.push_back(line);
+            reflines.push_back(line);
         }
     }
 
-    length_ = s;
+    return s;
 }
 
-void Road::add_lane(double width)
+void RefLine::sample(vector<RefLinePoint>& points, double step)
 {
-    Lane lane;
-    lane.id_ = 1;
-    lane.type_ = "driving";
-    lane.width_ = width;
-    lane.refline_ptr_ = refline_ptr_;
-    left_lanes_.push_back(lane);
+    double s_sum = 0.0;
+    double s_start = 0.0;
+    for (auto& line : reflines)
+    {
+        if (auto straight_line = std::dynamic_pointer_cast<StraightLine>(line))
+        {
+            double s = s_start;
+            for (; s < straight_line->length; s += step)
+            {
+                RefLinePoint point;
+                double hdg;
+                std::tie(point.x, point.y, hdg) =
+                    getArcEndPosition(0.0, s, straight_line->x, straight_line->y, straight_line->hdg);
+                point.s = s_sum;
+                s_sum += step;
+                points.push_back(point);
+            }
+            s_start = s - straight_line->length;
+
+        } else if (auto arc = std::dynamic_pointer_cast<ArcLine>(line))
+        {
+            double s = s_start;
+            for (; s < arc->length; s += step)
+            {
+                RefLinePoint point;
+                double hdg;
+                std::tie(point.x, point.y, hdg) = getArcEndPosition(arc->curvature, s, arc->x, arc->y, arc->hdg);
+                point.s = s_sum;
+                s_sum += step;
+                points.push_back(point);
+            }
+            s_start = s - arc->length;
+        }
+    }
+}
+
+tinyxml2::XMLElement* Lane::to_lane_xml(tinyxml2::XMLDocument& doc)
+{
+    tinyxml2::XMLElement* lane = doc.NewElement("lane");
+    lane->SetAttribute("id", id_);
+    lane->SetAttribute("type", type_.c_str());
+    lane->SetAttribute("level", "false");
+    auto link = doc.NewElement("link");
+    lane->InsertEndChild(link);
+    for (auto& width : lane_widths_)
+    {
+        auto width_xml = doc.NewElement("width");
+        width_xml->SetAttribute("sOffset", width.sOffset);
+        width_xml->SetAttribute("a", width.a);
+        width_xml->SetAttribute("b", width.b);
+        width_xml->SetAttribute("c", width.c);
+        width_xml->SetAttribute("d", width.d);
+        lane->InsertEndChild(width_xml);
+    }
+    return lane;
+}
+
+
+void Lane::fit_lane_width()
+{
+    vector<RefLinePoint> refline_sample_points;
+    refline_ptr_->sample(refline_sample_points);
+    vector<RefLinePoint> left_border_sample_points;
+    left_border_ptr_->sample(left_border_sample_points);
+
+    vector<Vector2d> s_width_pairs;
+
+    for (const auto& rp : refline_sample_points)
+    {
+        auto iter = std::lower_bound(left_border_sample_points.begin(), left_border_sample_points.end(), rp.s);
+        double min_distance = distance(rp.x, rp.y, iter->x, iter->y);
+        auto min_iter = iter + 1;
+
+        while (min_iter != left_border_sample_points.end())
+        {
+            double dis = distance(rp.x, rp.y, min_iter->x, min_iter->y);
+            if (dis < min_distance)
+            {
+                min_distance = dis;
+            } else
+            {
+                break;
+            }
+            ++min_iter;
+        }
+
+        auto rmin_iter = vector<RefLinePoint>::reverse_iterator(iter);
+        while (rmin_iter != left_border_sample_points.rend())
+        {
+            double dis = distance(rp.x, rp.y, min_iter->x, min_iter->y);
+            if (dis < min_distance)
+            {
+                min_distance = dis;
+            } else
+            {
+                break;
+            }
+            ++min_iter;
+        }
+
+        s_width_pairs.push_back({rp.s, min_distance});
+    }
+
+    vector<std::pair<int, Vector4d>> widths;
+    recursiveFitWidth(s_width_pairs, 0.1, widths);
+
+    for (const auto& width : widths)
+    {
+        LaneWidth lane_width;
+        lane_width.sOffset = s_width_pairs[width.first][0];
+        lane_width.a = width.second[3];
+        lane_width.b = width.second[2];
+        lane_width.c = width.second[1];
+        lane_width.d = width.second[0];
+        lane_widths_.push_back(lane_width);
+    }
+
+}
+
+Road::Road(const PointVec& refline_points)
+{
+    refline_ptr_ = std::make_shared<RefLine>();
+    length_ = refline_ptr_->fit(refline_points);
+}
+
+void Road::add_lane(const PointVec& left_border, ID id, string type)
+{
+    left_lanes_.emplace_back(id, type, refline_ptr_);
+    left_lanes_.back().set_left_border(left_border);
+    left_lanes_.back().fit_lane_width();
 }
 
 tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
@@ -189,13 +306,13 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     {
         left->InsertEndChild(lane.to_lane_xml(doc));
     }
-    
+
     auto lane = doc.NewElement("lane");
     lane->SetAttribute("id", 0);
     lane->SetAttribute("type", "driving");
     lane->SetAttribute("level", "false");
     center->InsertEndChild(lane);
-    
+
     for (auto& lane : right_lanes_)
     {
         right->InsertEndChild(lane.to_lane_xml(doc));
@@ -246,8 +363,8 @@ void OpenDrive::to_xml(const string& filename)
     std::cout << doc_.SaveFile(filename.c_str()) << std::endl;
 }
 
-void OpenDrive::add_road(const PointVec& refline_points)
+Road& OpenDrive::add_road(const PointVec& refline_points)
 {
     roads_.emplace_back(refline_points);
-    roads_.back().add_lane(3);
+    return roads_.back();
 }
