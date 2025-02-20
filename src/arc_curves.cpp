@@ -239,6 +239,25 @@ std::tuple<double, double, double> getArcEndPosition(double curvature, double le
     return {x_end, y_end, getPositiveHeading(hdg_end)};
 }
 
+// 一元线性曲线拟合函数
+Vector2d fitLinear(const vector<Vector2d>& points)
+{
+    int n = points.size();
+    MatrixXd A(n, 2);
+    VectorXd b(n);
+
+    for (int i = 0; i < n; ++i)
+    {
+        double x = points[i][0];
+        A(i, 0) = 1;
+        A(i, 1) = x;
+        b(i) = points[i][1];
+    }
+
+    Vector2d coeff = A.colPivHouseholderQr().solve(b);
+    return coeff;
+}
+
 // 一元三次曲线拟合函数
 Vector4d fitCubicSpline(const vector<Vector2d>& points)
 {
@@ -271,44 +290,67 @@ double computeDistance(const Vector2d& point, const Vector4d& coeff)
     return std::abs(y_fit - point[1]);
 }
 
-// 主算法函数
+// 递归拟合车道宽度
 void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<int, Vector4d>>& widths,
                        int index_offset)
 {
-    if (points.size() < 2) return;  // 最少需要两个点才能拟合曲线
+    if (points.size() < 2) return;
 
-    // 拟合一元三次曲线
-    Vector4d coeff = fitCubicSpline(points);
+    // 先尝试线性拟合
+    Vector2d linear_coeff = fitLinear(points);
+    Vector4d combined_linear_coeff;
+    combined_linear_coeff << linear_coeff[0], linear_coeff[1], 0.0, 0.0;
 
-    // 计算所有点到拟合曲线的距离
-    vector<double> distances;
+    double max_linear_error = 0.0;
     for (const auto& point : points)
     {
-        distances.push_back(computeDistance(point, coeff));
+        auto dis = computeDistance(point, combined_linear_coeff);
+        if (dis > max_linear_error)
+        {
+            max_linear_error = dis;
+        }
     }
 
-    // 找到最大误差的点
-    auto max_it = max_element(distances.begin(), distances.end());
-    double max_distance = *max_it;
-    int max_index = distance(distances.begin(), max_it);
-
-    // 如果最大误差小于阈值，则算法结束
-    if (max_distance < threshold)
+    if (max_linear_error <= threshold)
     {
-        // std::cout << "拟合成功，误差小于阈值。" << std::endl;
-        // std::cout << points.front() << "\n" << points.back() << std::endl;
-        // std::cout << "coeff: \n" << coeff << std::endl;
-        widths.push_back({index_offset, coeff});
+        widths.push_back({index_offset, combined_linear_coeff});
         return;
     }
 
-    // 否则，分割曲线并递归处理
+    // 线性拟合不满足，尝试三次拟合
+    Vector4d cubic_coeff = fitCubicSpline(points);
+
+    double max_cubic_error = 0.0;
+    int max_index = 0;
+    for (int i = 0; i < points.size(); ++i)
+    {
+        auto dis = computeDistance(points[i], cubic_coeff);
+        if (dis > max_cubic_error)
+        {
+            max_cubic_error = dis;
+            max_index = i;
+        }
+    }
+
+    if (max_cubic_error <= threshold)
+    {
+        widths.push_back({index_offset, cubic_coeff});
+        return;          
+    }
+
+    // 最大误差点在边界
+    if (max_index == 0)
+    {
+        ++max_index;
+    }
+    if (max_index == points.size() - 1)
+    {
+        --max_index;
+    }
+
     vector<Vector2d> left_points(points.begin(), points.begin() + max_index + 1);
     vector<Vector2d> right_points(points.begin() + max_index, points.end());
 
-    // std::cout << "分割曲线，左部分点数：" << left_points.size() << "，右部分点数：" << right_points.size() <<
-    // std::endl;
-
-    recursiveFitWidth(left_points, threshold, widths, 0);
+    recursiveFitWidth(left_points, threshold, widths, index_offset);
     recursiveFitWidth(right_points, threshold, widths, index_offset + max_index);
 }

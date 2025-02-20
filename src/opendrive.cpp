@@ -244,16 +244,16 @@ void Lane::fit_lane_width()
     }
 
     vector<std::pair<int, Vector4d>> widths;
-    recursiveFitWidth(s_width_pairs, 0.1, widths);
+    recursiveFitWidth(s_width_pairs, 0.2, widths);
 
     for (const auto& width : widths)
     {
         LaneWidth lane_width;
         lane_width.sOffset = s_width_pairs[width.first][0];
-        lane_width.a = width.second[3];
-        lane_width.b = width.second[2];
-        lane_width.c = width.second[1];
-        lane_width.d = width.second[0];
+        lane_width.a = width.second[0];
+        lane_width.b = width.second[1];
+        lane_width.c = width.second[2];
+        lane_width.d = width.second[3];
         lane_widths_.push_back(lane_width);
     }
 

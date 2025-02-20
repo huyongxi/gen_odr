@@ -57,7 +57,7 @@ struct RefLine
     vector<shared_ptr<BaseLine>> reflines;
     double fit(const PointVec& refline_points);
     tinyxml2::XMLElement* to_planView_xml(tinyxml2::XMLDocument& doc);
-    void sample(vector<RefLinePoint>& points, double step = 1);
+    void sample(vector<RefLinePoint>& points, double step = 0.5);
 };
 
 
