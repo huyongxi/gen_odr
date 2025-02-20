@@ -1,12 +1,12 @@
+#include "opendrive.h"
+
+#include <tinyxml2.h>
+
 #include <iostream>
 #include <limits>
 #include <tuple>
 #include <utility>
 #include <vector>
-
-#include <tinyxml2.h>
-
-#include "opendrive.h"
 
 #include "arc_curves.h"
 
@@ -79,8 +79,8 @@ double RefLine::fit(const PointVec& refline_points)
 
         if (distance(x1, y1, xarc, yarc) > 0.1)
         {
-            std::cout << "xstart: " << x1 << " ystart: " << y1 << " length: " << distance(x1, y1, xarc, yarc)
-                      << " heading: " << hdg << " curvature: " << 0.0 << std::endl;
+            // std::cout << "xstart: " << x1 << " ystart: " << y1 << " length: " << distance(x1, y1, xarc, yarc)
+            //           << " heading: " << hdg << " curvature: " << 0.0 << std::endl;
 
             auto line = std::make_shared<StraightLine>();
             line->s = s;
@@ -92,8 +92,8 @@ double RefLine::fit(const PointVec& refline_points)
             reflines.push_back(line);
         }
 
-        std::cout << "xstart: " << xarc << " ystart: " << yarc << " length: " << length << " heading: " << hdg
-                  << " curvature: " << curvature << std::endl;
+        // std::cout << "xstart: " << xarc << " ystart: " << yarc << " length: " << length << " heading: " << hdg
+        //           << " curvature: " << curvature << std::endl;
 
         if (std::abs(curvature) < 0.0001)
         {
@@ -120,9 +120,10 @@ double RefLine::fit(const PointVec& refline_points)
 
         if (distance(xendline, yendline, x3, y3) > 0.1)
         {
-            std::cout << "xstart: " << xendline << " ystart: " << yendline
-                      << " length: " << distance(xendline, yendline, x3, y3)
-                      << " heading: " << giveHeading(xendline, yendline, x3, y3) << " curvature: " << 0.0 << std::endl;
+            // std::cout << "xstart: " << xendline << " ystart: " << yendline
+            //           << " length: " << distance(xendline, yendline, x3, y3)
+            //           << " heading: " << giveHeading(xendline, yendline, x3, y3) << " curvature: " << 0.0 <<
+            //           std::endl;
 
             auto line = std::make_shared<StraightLine>();
             line->s = s;
@@ -197,20 +198,26 @@ tinyxml2::XMLElement* Lane::to_lane_xml(tinyxml2::XMLDocument& doc)
     return lane;
 }
 
-
 void Lane::fit_lane_width()
 {
     vector<RefLinePoint> refline_sample_points;
     refline_ptr_->sample(refline_sample_points);
+
     vector<RefLinePoint> left_border_sample_points;
     left_border_ptr_->sample(left_border_sample_points);
 
     vector<Vector2d> s_width_pairs;
-
+    double min_distance = 0.0;
     for (const auto& rp : refline_sample_points)
     {
         auto iter = std::lower_bound(left_border_sample_points.begin(), left_border_sample_points.end(), rp.s);
-        double min_distance = distance(rp.x, rp.y, iter->x, iter->y);
+        if (iter == left_border_sample_points.end())
+        {
+            s_width_pairs.push_back({rp.s, min_distance});
+            continue;
+        }
+
+        min_distance = distance(rp.x, rp.y, iter->x, iter->y);
         auto min_iter = iter + 1;
 
         while (min_iter != left_border_sample_points.end())
@@ -243,20 +250,19 @@ void Lane::fit_lane_width()
         s_width_pairs.push_back({rp.s, min_distance});
     }
 
-    vector<std::pair<int, Vector4d>> widths;
-    recursiveFitWidth(s_width_pairs, 0.2, widths);
+    vector<std::pair<double, Vector4d>> widths;
+    recursiveFitWidth(s_width_pairs, 0.1, widths);
 
     for (const auto& width : widths)
     {
         LaneWidth lane_width;
-        lane_width.sOffset = s_width_pairs[width.first][0];
+        lane_width.sOffset = width.first;
         lane_width.a = width.second[0];
         lane_width.b = width.second[1];
         lane_width.c = width.second[2];
         lane_width.d = width.second[3];
         lane_widths_.push_back(lane_width);
     }
-
 }
 
 Road::Road(const PointVec& refline_points)
@@ -358,9 +364,7 @@ void OpenDrive::to_xml(const string& filename)
     {
         openDrive->InsertEndChild(road.to_road_xml(doc_));
     }
-
-    std::cout << doc_.ErrorStr() << std::endl;
-    std::cout << doc_.SaveFile(filename.c_str()) << std::endl;
+    doc_.SaveFile(filename.c_str());
 }
 
 Road& OpenDrive::add_road(const PointVec& refline_points)

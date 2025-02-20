@@ -1,6 +1,8 @@
 #include "arc_curves.h"
 
+#include <algorithm>
 #include <utility>
+#include <vector>
 
 double distance(double x1, double y1, double x2, double y2)
 {
@@ -291,66 +293,62 @@ double computeDistance(const Vector2d& point, const Vector4d& coeff)
 }
 
 // 递归拟合车道宽度
-void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<int, Vector4d>>& widths,
-                       int index_offset)
+void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths)
 {
-    if (points.size() < 2) return;
-
-    // 先尝试线性拟合
-    Vector2d linear_coeff = fitLinear(points);
-    Vector4d combined_linear_coeff;
-    combined_linear_coeff << linear_coeff[0], linear_coeff[1], 0.0, 0.0;
-
-    double max_linear_error = 0.0;
-    for (const auto& point : points)
+    double s_start = 0.0;
+    int base = 0;
+    std::pair<double, Vector4d> best_fit;
+    while (base < points.size() - 1)
     {
-        auto dis = computeDistance(point, combined_linear_coeff);
-        if (dis > max_linear_error)
+        int i = 1;
+        for (; i < points.size() - base; ++i)
         {
-            max_linear_error = dis;
+            vector<Vector2d> sub_points(points.begin() + base, points.begin() + base + i + 1);
+            std::for_each(sub_points.begin(), sub_points.end(), [=](Vector2d& p) { p[0] -= s_start; });
+            // 先尝试线性拟合
+
+            // Vector2d linear_coeff = fitLinear(sub_points);
+            // Vector4d combined_linear_coeff;
+            // combined_linear_coeff << linear_coeff[0], linear_coeff[1], 0.0, 0.0;
+
+            // double max_linear_error = 0.0;
+            // for (const auto& sub_point : sub_points)
+            // {
+            //     auto dis = computeDistance(sub_point, combined_linear_coeff);
+            //     if (dis > max_linear_error)
+            //     {
+            //         max_linear_error = dis;
+            //     }
+            // }
+
+            // if (max_linear_error <= threshold)
+            // {
+            //     best_fit = {s_start, combined_linear_coeff};
+            //     continue;
+            // }
+
+            // 线性拟合不满足，尝试三次拟合
+            Vector4d cubic_coeff = fitCubicSpline(sub_points);
+
+            double max_cubic_error = 0.0;
+            for (const auto& sub_point : sub_points)
+            {
+                auto dis = computeDistance(sub_point, cubic_coeff);
+                if (dis > max_cubic_error)
+                {
+                    max_cubic_error = dis;
+                }
+            }
+
+            if (max_cubic_error <= threshold)
+            {
+                best_fit = {s_start, cubic_coeff};
+                continue;
+            }
+            break;
         }
+        base += i;
+        s_start = (points.begin() + base)->x();
+        widths.push_back(best_fit);
     }
-
-    if (max_linear_error <= threshold)
-    {
-        widths.push_back({index_offset, combined_linear_coeff});
-        return;
-    }
-
-    // 线性拟合不满足，尝试三次拟合
-    Vector4d cubic_coeff = fitCubicSpline(points);
-
-    double max_cubic_error = 0.0;
-    int max_index = 0;
-    for (int i = 0; i < points.size(); ++i)
-    {
-        auto dis = computeDistance(points[i], cubic_coeff);
-        if (dis > max_cubic_error)
-        {
-            max_cubic_error = dis;
-            max_index = i;
-        }
-    }
-
-    if (max_cubic_error <= threshold)
-    {
-        widths.push_back({index_offset, cubic_coeff});
-        return;          
-    }
-
-    // 最大误差点在边界
-    if (max_index == 0)
-    {
-        ++max_index;
-    }
-    if (max_index == points.size() - 1)
-    {
-        --max_index;
-    }
-
-    vector<Vector2d> left_points(points.begin(), points.begin() + max_index + 1);
-    vector<Vector2d> right_points(points.begin() + max_index, points.end());
-
-    recursiveFitWidth(left_points, threshold, widths, index_offset);
-    recursiveFitWidth(right_points, threshold, widths, index_offset + max_index);
 }

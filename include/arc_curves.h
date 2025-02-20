@@ -32,4 +32,4 @@ std::tuple<double, double, double> getArcEndPosition(double curvature, double le
 
 Vector4d fitCubicSpline(const vector<Vector2d>& points);
 double computeDistance(const Vector2d& point, const Vector4d& coeff);
-void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<int, Vector4d>>& widths, int index_offset = 0);
+void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths);
