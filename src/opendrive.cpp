@@ -161,6 +161,7 @@ void RefLine::sample(vector<RefLinePoint>& points, double step)
                 std::tie(point.x, point.y, hdg) =
                     getArcEndPosition(0.0, s, straight_line->x, straight_line->y, straight_line->hdg);
                 point.s = s_sum;
+                point.hdg = hdg;
                 s_sum += step;
                 points.push_back(point);
             }
@@ -175,6 +176,7 @@ void RefLine::sample(vector<RefLinePoint>& points, double step)
                 double hdg;
                 std::tie(point.x, point.y, hdg) = getArcEndPosition(arc->curvature, s, arc->x, arc->y, arc->hdg);
                 point.s = s_sum;
+                point.hdg = hdg;
                 s_sum += step;
                 points.push_back(point);
             }
@@ -222,11 +224,31 @@ void Lane::connect_to(Lane& lane)
     lane.link_.predecessor_id = id_;
 }
 
+double calc_distance(const Vector2d& s, double shdg, const Vector2d& p)
+{
+    double hdg = giveHeading(s.x(), s.y(), p.x(), p.y());
+    double deltaHdg = getDeltaHdg(hdg, shdg);
+    return distance(s.x(), s.y(), p.x(), p.y()) * std::cos(deltaHdg);
+}
+
 void calc_width(const vector<RefLinePoint>& ref, const vector<RefLinePoint>& border, vector<Vector2d>& s_width_pairs)
 {
     double min_distance = 0.0;
     for (const auto& rp : ref)
     {
+        double mind = 1000;
+        double dx = 0.0;
+        for (const auto& p: border)
+        {
+            double d = calc_distance({rp.x, rp.y}, rp.hdg, {p.x, p.y});
+            if (d < mind)
+            {
+                mind = d;
+                dx = distance(rp.x, rp.y, p.x, p.y);
+            }
+        }
+        std::cout << rp.s << "-->" << mind << " " << dx << std::endl;
+
         auto iter = std::lower_bound(border.begin(), border.end(), rp.s);
         if (iter == border.end())
         {
@@ -292,7 +314,9 @@ void Lane::fit_lane_width()
         {
             s_width_pairs.push_back({s_width_pairs1[i].x(), s_width_pairs.back().y()});
         }
+        std::cout << "(" << s_width_pairs.back()[0] << ", " << s_width_pairs.back()[1] << "),";
     }
+    std::cout << std::endl;
 
     vector<std::pair<double, Vector4d>> widths;
     fitLaneWidth(s_width_pairs, 0.1, widths);
@@ -380,6 +404,7 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     road->SetAttribute("name", name_.c_str());
     road->SetAttribute("length", length_);
     road->SetAttribute("junction", junction_id_);
+    road->SetAttribute("rule", "LHT");
     road->InsertEndChild(planView);
 
     auto lanes = doc.NewElement("lanes");

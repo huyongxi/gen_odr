@@ -17,6 +17,9 @@ int main()
     auto& road3 = opendrive.add_road(road3_right);
     road3.add_lane(road3_left, "driving");
 
+    auto& road4 = opendrive.add_road(road4_right);
+    road4.add_lane(road4_left, "driving");
+
     road1 >> road2 >> road3;
 
     opendrive.to_xml("test.xml");

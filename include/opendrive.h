@@ -47,6 +47,7 @@ struct RefLinePoint
     double x;
     double y;
     double s;
+    double hdg;
     bool operator<(double other) const { return s < other; }
 };
 
