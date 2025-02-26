@@ -1,8 +1,12 @@
 #include "arc_curves.h"
 
 #include <algorithm>
+#include <cassert>
+#include <iostream>
 #include <utility>
 #include <vector>
+
+double epsilon = 0.00001;
 
 double distance(double x1, double y1, double x2, double y2)
 {
@@ -40,13 +44,11 @@ double getDeltaHdg(double hdg1, double hdg2)
         deltaHdg = std::fmod(std::abs(deltaHdg), M_PI) * std::copysign(1.0, deltaHdg);
     }
     return deltaHdg;
-
-    return deltaHdg;
 }
 
 double giveHeading(double x1, double y1, double x2, double y2)
 {
-    // assert(!(x1 == x2 && y1 == y2));  // 确保 x1, y1 和 x2, y2 不相同
+    assert(!(std::abs(x1 - x2) > epsilon && std::abs(y1 - y2) < epsilon));  // 确保 x1, y1 和 x2, y2 不相同
 
     double x_arr[2] = {x1, x2};
     double y_arr[2] = {y1, y2};
@@ -58,7 +60,7 @@ double giveHeading(double x1, double y1, double x2, double y2)
     if (x_arr[1] > 0)
     {
         phi = std::atan(y_arr[1] / x_arr[1]);
-    } else if (x_arr[1] == 0)
+    } else if (std::abs(x_arr[1]) <= epsilon)
     {
         if (y_arr[1] > 0)
         {
@@ -93,41 +95,34 @@ std::tuple<double, double, double, double> schnittpunkt(double x1, double y1, do
 
     if (std::abs(std::sin(hdg1) * std::cos(hdg2) - std::sin(hdg2) * std::cos(hdg1)) < EPSILON)
     {
-        // r2 calculation
         r2 = (y1 * std::cos(hdg1) + std::sin(hdg1) * (x2 - x1) - y2 * std::cos(hdg1)) /
              (std::sin(hdg2) * std::cos(hdg1) - std::sin(hdg1) * std::cos(hdg2));
 
         if (std::abs(std::abs(hdg1) - PI_2) < PI_2_THRESHOLD)
         {
-            // r1 calculation when hdg1 is near 90° or -90°
             r1 = (y2 - y1 + std::sin(hdg2) * r2) / std::sin(hdg1);
         } else
         {
-            // r1 calculation for general case
             r1 = (x2 - x1 + std::cos(hdg2) * r2) / std::cos(hdg1);
         }
     } else
     {
-        // r1 calculation
         r1 = (-y1 * std::cos(hdg2) + y2 * std::cos(hdg2) + std::sin(hdg2) * x1 - std::sin(hdg2) * x2) /
              (std::sin(hdg1) * std::cos(hdg2) - std::sin(hdg2) * std::cos(hdg1));
 
         if (std::abs(std::abs(hdg2) - PI_2) < PI_2_THRESHOLD)
         {
-            // r2 calculation when hdg2 is near 90° or -90°
             r2 = (y1 - y2 + std::sin(hdg1) * r1) / std::sin(hdg2);
         } else
         {
-            // r2 calculation for general case
             r2 = (x1 - x2 + std::cos(hdg1) * r1) / std::cos(hdg2);
         }
     }
 
-    // Calculate intersection point (x_s, y_s)
     double x_s = x1 + std::cos(hdg1) * r1;
     double y_s = y1 + std::sin(hdg1) * r1;
 
-    return {x_s, y_s, r1, r2};  // Return intersection point and distances
+    return {x_s, y_s, r1, r2};
 }
 
 std::tuple<double, double, double, double, double, double> getArcCurvatureAndLength(double xstart, double ystart,
@@ -139,15 +134,13 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
     double hdg_start = giveHeading(xstart, ystart, x_curveMid, y_curveMid);
     double hdg_mid2end = giveHeading(x_curveMid, y_curveMid, x_end, y_end);
 
-    // assert(hdg_start != hdg_mid2end && "The directions have to be different!");
-
     double deltaHdg = getDeltaHdg(hdg_start, hdg_mid2end);
     double winkelHalbHdg = deltaHdg / 2.0 + hdg_start;
 
     double maxDist =
         std::min(distance(x_curveMid, y_curveMid, xstart, ystart), distance(x_curveMid, y_curveMid, x_end, y_end));
 
-    if (std::abs(deltaHdg) < 0.0001)
+    if (std::abs(deltaHdg) < epsilon)
     {
         return {xstart, ystart, x_end, y_end, 0.0, distance(xstart, ystart, x_end, y_end)};
     }
@@ -209,12 +202,16 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
 std::tuple<double, double, double> getArcEndPosition(double curvature, double length, double xstart, double ystart,
                                                      double hdg_start)
 {
+    if (std::abs(length) < epsilon)
+    {
+        return {xstart, ystart, hdg_start};
+    }
     double deltaHdg = curvature * length;
     double hdg_end = deltaHdg + hdg_start;
 
     double x_end, y_end;
 
-    if (std::abs(curvature) > 0.0001)
+    if (std::abs(curvature) > epsilon)
     {
         double radius = length / deltaHdg;
         double x_M, y_M;
@@ -242,18 +239,19 @@ std::tuple<double, double, double> getArcEndPosition(double curvature, double le
 }
 
 // 一元线性曲线拟合函数
-Vector2d fitLinear(const vector<Vector2d>& points)
+Vector2d fitLinear(PointVec::const_iterator begin, PointVec::const_iterator end)
 {
-    int n = points.size();
+    int n = end - begin;
     MatrixXd A(n, 2);
     VectorXd b(n);
 
-    for (int i = 0; i < n; ++i)
+    int i = 0;
+    for (auto iter = begin; iter != end; ++iter, ++i)
     {
-        double x = points[i][0];
+        double x = (*iter)[0];
         A(i, 0) = 1;
         A(i, 1) = x;
-        b(i) = points[i][1];
+        b(i) = (*iter)[1];
     }
 
     Vector2d coeff = A.colPivHouseholderQr().solve(b);
@@ -292,8 +290,8 @@ double computeDistance(const Vector2d& point, const Vector4d& coeff)
     return std::abs(y_fit - point[1]);
 }
 
-// 递归拟合车道宽度
-void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths)
+// 拟合车道宽度
+void fitLaneWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths)
 {
     double s_start = 0.0;
     int base = 0;
@@ -305,31 +303,7 @@ void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<
         {
             vector<Vector2d> sub_points(points.begin() + base, points.begin() + base + i + 1);
             std::for_each(sub_points.begin(), sub_points.end(), [=](Vector2d& p) { p[0] -= s_start; });
-            // 先尝试线性拟合
-
-            // Vector2d linear_coeff = fitLinear(sub_points);
-            // Vector4d combined_linear_coeff;
-            // combined_linear_coeff << linear_coeff[0], linear_coeff[1], 0.0, 0.0;
-
-            // double max_linear_error = 0.0;
-            // for (const auto& sub_point : sub_points)
-            // {
-            //     auto dis = computeDistance(sub_point, combined_linear_coeff);
-            //     if (dis > max_linear_error)
-            //     {
-            //         max_linear_error = dis;
-            //     }
-            // }
-
-            // if (max_linear_error <= threshold)
-            // {
-            //     best_fit = {s_start, combined_linear_coeff};
-            //     continue;
-            // }
-
-            // 线性拟合不满足，尝试三次拟合
             Vector4d cubic_coeff = fitCubicSpline(sub_points);
-
             double max_cubic_error = 0.0;
             for (const auto& sub_point : sub_points)
             {
@@ -351,4 +325,36 @@ void recursiveFitWidth(const vector<Vector2d>& points, double threshold, vector<
         s_start = (points.begin() + base)->x();
         widths.push_back(best_fit);
     }
+}
+
+// 圆弧拟合函数
+Vector3d fitCircle(PointVec::const_iterator begin, PointVec::const_iterator end)
+{
+    int n = end - begin;
+    MatrixXd A(n, 3);
+    VectorXd b(n);
+
+    // 构造方程 Ax = b，其中A为设计矩阵，b为结果向量
+    int i = 0;
+    for (auto iter = begin; iter != end; ++iter, ++i)
+    {
+        double x = (*iter)[0];
+        double y = (*iter)[1];
+        A(i, 0) = 2 * x;
+        A(i, 1) = 2 * y;
+        A(i, 2) = 1;
+        b(i) = x * x + y * y;
+    }
+
+    // 使用最小二乘法解线性方程 Ax = b，得到拟合的系数
+    Vector3d coeff = A.colPivHouseholderQr().solve(b);
+
+    // 圆心 (h, k) 和半径 r
+    double h = coeff(0);
+    double k = coeff(1);
+    double r2 = coeff(2);  // r^2
+
+    double r = sqrt(r2 + h * h + k * k);  // 计算半径
+
+    return Vector3d(h, k, r);
 }

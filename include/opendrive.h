@@ -13,7 +13,9 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-using ID = uint64_t;
+using ID = int64_t;
+
+ID GetId();
 
 struct BaseLine
 {
@@ -45,10 +47,7 @@ struct RefLinePoint
     double x;
     double y;
     double s;
-    bool operator< (double other) const
-    {
-        return s < other;
-    }
+    bool operator<(double other) const { return s < other; }
 };
 
 //参考线
@@ -56,10 +55,10 @@ struct RefLine
 {
     vector<shared_ptr<BaseLine>> reflines;
     double fit(const PointVec& refline_points);
+    double fit_refline(const PointVec& refline_points);
     tinyxml2::XMLElement* to_planView_xml(tinyxml2::XMLDocument& doc);
-    void sample(vector<RefLinePoint>& points, double step = 0.5);
+    void sample(vector<RefLinePoint>& points, double step = 0.2);
 };
-
 
 struct LaneWidth
 {
@@ -68,6 +67,12 @@ struct LaneWidth
     double b;
     double c;
     double d;
+};
+
+struct LaneLink
+{
+    ID predecessor_id{};
+    ID successor_id{};
 };
 
 //车道
@@ -80,6 +85,7 @@ class Lane
     shared_ptr<RefLine> refline_ptr_;
     shared_ptr<RefLine> left_border_ptr_;
     shared_ptr<RefLine> right_border_ptr_;
+    LaneLink link_;
 
    public:
     Lane(ID id, string type, shared_ptr<RefLine> refline_ptr) : id_(id), type_(type), refline_ptr_(refline_ptr)
@@ -94,13 +100,25 @@ class Lane
 
     // void set_right_border(const PointVec& points)
     // {
-    //     right_border_ptr_->fit(points);
+    //     right_border_ptr_->fit_refline(points);
     // }
 
     //拟合车道宽度
     void fit_lane_width();
 
+    void connect_to(Lane& lane);
+
     tinyxml2::XMLElement* to_lane_xml(tinyxml2::XMLDocument& doc);
+};
+
+struct RoadLink
+{
+    ID predecessor_id{};
+    string predecessor_type;
+    string predecessor_contact_point;
+    ID successor_id{};
+    string successor_type;
+    string successor_contact_point;
 };
 
 //道路
@@ -108,20 +126,21 @@ class Road
 {
    private:
     ID id_;
-    ID junction_id_;
+    ID junction_id_{-1};
     string name_;
-    string rule_;
+    string rule_{"RHT"};
     double length_;
     shared_ptr<RefLine> refline_ptr_;
     vector<Lane> left_lanes_;
     vector<Lane> right_lanes_;
+    RoadLink link_;
 
    public:
     Road(const PointVec& refline_points);
     tinyxml2::XMLElement* to_road_xml(tinyxml2::XMLDocument& doc);
-    void add_lane(const PointVec& left_border, ID id = 1, string type = "driving");
-
-   public:
+    void add_lane(const PointVec& left_border, string type = "driving");
+    Road& connect_to(Road& road);
+    Road& operator>>(Road& road) { return connect_to(road); }
 };
 
 struct Header
@@ -146,6 +165,7 @@ class OpenDrive
     vector<Road> roads_;
 
    public:
+    OpenDrive() { roads_.reserve(100); }
     void to_xml(const string& filename);
     Road& add_road(const PointVec& refline_points);
 };

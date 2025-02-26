@@ -2,6 +2,7 @@
 
 #include <tinyxml2.h>
 
+#include <atomic>
 #include <iostream>
 #include <limits>
 #include <tuple>
@@ -9,6 +10,12 @@
 #include <vector>
 
 #include "arc_curves.h"
+
+ID GetId()
+{
+    static std::atomic<ID> id{0};
+    return ++id;
+}
 
 tinyxml2::XMLElement* StraightLine::to_geometry_xml(tinyxml2::XMLDocument& doc)
 {
@@ -53,12 +60,12 @@ double RefLine::fit(const PointVec& refline_points)
 
     for (int i = 0; i < refline_points.size() - 2; ++i)
     {
-        double x1 = refline_points[i].x;
-        double y1 = refline_points[i].y;
-        double x2 = refline_points[i + 1].x;
-        double y2 = refline_points[i + 1].y;
-        double x3 = refline_points[i + 2].x;
-        double y3 = refline_points[i + 2].y;
+        double x1 = refline_points[i].x();
+        double y1 = refline_points[i].y();
+        double x2 = refline_points[i + 1].x();
+        double y2 = refline_points[i + 1].y();
+        double x3 = refline_points[i + 2].x();
+        double y3 = refline_points[i + 2].y();
         double hdg = giveHeading(x1, y1, x2, y2);
 
         if (i != 0)
@@ -74,8 +81,7 @@ double RefLine::fit(const PointVec& refline_points)
         }
 
         double xarc, yarc, xendline, yendline, curvature, length;
-        std::tie(xarc, yarc, xendline, yendline, curvature, length) =
-            getArcCurvatureAndLength(x1, y1, x3, y3, x2, y2, 0.8, 0.5, 100);
+        std::tie(xarc, yarc, xendline, yendline, curvature, length) = getArcCurvatureAndLength(x1, y1, x3, y3, x2, y2);
 
         if (distance(x1, y1, xarc, yarc) > 0.1)
         {
@@ -95,7 +101,7 @@ double RefLine::fit(const PointVec& refline_points)
         // std::cout << "xstart: " << xarc << " ystart: " << yarc << " length: " << length << " heading: " << hdg
         //           << " curvature: " << curvature << std::endl;
 
-        if (std::abs(curvature) < 0.0001)
+        if (std::abs(curvature) < epsilon)
         {
             auto line = std::make_shared<StraightLine>();
             line->s = s;
@@ -127,8 +133,8 @@ double RefLine::fit(const PointVec& refline_points)
 
             auto line = std::make_shared<StraightLine>();
             line->s = s;
-            line->x = x1;
-            line->y = y1;
+            line->x = xendline;
+            line->y = yendline;
             line->hdg = giveHeading(xendline, yendline, x3, y3);
             line->length = distance(xendline, yendline, x3, y3);
             s += line->length;
@@ -184,6 +190,18 @@ tinyxml2::XMLElement* Lane::to_lane_xml(tinyxml2::XMLDocument& doc)
     lane->SetAttribute("type", type_.c_str());
     lane->SetAttribute("level", "false");
     auto link = doc.NewElement("link");
+    if (link_.predecessor_id > 0)
+    {
+        auto predecessor = doc.NewElement("predecessor");
+        predecessor->SetAttribute("id", link_.predecessor_id);
+        link->InsertEndChild(predecessor);
+    }
+    if (link_.successor_id > 0)
+    {
+        auto successor = doc.NewElement("successor");
+        successor->SetAttribute("id", link_.successor_id);
+        link->InsertEndChild(successor);
+    }
     lane->InsertEndChild(link);
     for (auto& width : lane_widths_)
     {
@@ -198,6 +216,58 @@ tinyxml2::XMLElement* Lane::to_lane_xml(tinyxml2::XMLDocument& doc)
     return lane;
 }
 
+void Lane::connect_to(Lane& lane)
+{
+    link_.successor_id = lane.id_;
+    lane.link_.predecessor_id = id_;
+}
+
+void calc_width(const vector<RefLinePoint>& ref, const vector<RefLinePoint>& border, vector<Vector2d>& s_width_pairs)
+{
+    double min_distance = 0.0;
+    for (const auto& rp : ref)
+    {
+        auto iter = std::lower_bound(border.begin(), border.end(), rp.s);
+        if (iter == border.end())
+        {
+            s_width_pairs.push_back({rp.s, min_distance});
+            continue;
+        }
+
+        auto index = std::distance(border.begin(), iter);
+
+        min_distance = distance(rp.x, rp.y, iter->x, iter->y);
+
+        auto min_iter = iter + 1;
+
+        while (min_iter != border.end())
+        {
+            double dis = distance(rp.x, rp.y, min_iter->x, min_iter->y);
+            if (dis < min_distance)
+            {
+                min_distance = dis;
+            } else
+            {
+                break;
+            }
+            ++min_iter;
+        }
+
+        while (--index >= 0)
+        {
+            double dis = distance(rp.x, rp.y, border[index].x, border[index].y);
+            if (dis < min_distance)
+            {
+                min_distance = dis;
+            } else
+            {
+                break;
+            }
+        }
+        s_width_pairs.push_back({rp.s, min_distance});
+    }
+}
+
 void Lane::fit_lane_width()
 {
     vector<RefLinePoint> refline_sample_points;
@@ -206,52 +276,26 @@ void Lane::fit_lane_width()
     vector<RefLinePoint> left_border_sample_points;
     left_border_ptr_->sample(left_border_sample_points);
 
+    vector<Vector2d> s_width_pairs1;
+    vector<Vector2d> s_width_pairs2;
     vector<Vector2d> s_width_pairs;
-    double min_distance = 0.0;
-    for (const auto& rp : refline_sample_points)
+
+    calc_width(refline_sample_points, left_border_sample_points, s_width_pairs1);
+    calc_width(left_border_sample_points, refline_sample_points, s_width_pairs2);
+
+    for (int i = 0; i < s_width_pairs1.size(); ++i)
     {
-        auto iter = std::lower_bound(left_border_sample_points.begin(), left_border_sample_points.end(), rp.s);
-        if (iter == left_border_sample_points.end())
+        if (i < s_width_pairs2.size())
         {
-            s_width_pairs.push_back({rp.s, min_distance});
-            continue;
-        }
-
-        min_distance = distance(rp.x, rp.y, iter->x, iter->y);
-        auto min_iter = iter + 1;
-
-        while (min_iter != left_border_sample_points.end())
+            s_width_pairs.push_back({s_width_pairs1[i].x(), std::min(s_width_pairs1[i].y(), s_width_pairs2[i].y())});
+        } else
         {
-            double dis = distance(rp.x, rp.y, min_iter->x, min_iter->y);
-            if (dis < min_distance)
-            {
-                min_distance = dis;
-            } else
-            {
-                break;
-            }
-            ++min_iter;
+            s_width_pairs.push_back({s_width_pairs1[i].x(), s_width_pairs.back().y()});
         }
-
-        auto rmin_iter = vector<RefLinePoint>::reverse_iterator(iter);
-        while (rmin_iter != left_border_sample_points.rend())
-        {
-            double dis = distance(rp.x, rp.y, min_iter->x, min_iter->y);
-            if (dis < min_distance)
-            {
-                min_distance = dis;
-            } else
-            {
-                break;
-            }
-            ++min_iter;
-        }
-
-        s_width_pairs.push_back({rp.s, min_distance});
     }
 
     vector<std::pair<double, Vector4d>> widths;
-    recursiveFitWidth(s_width_pairs, 0.1, widths);
+    fitLaneWidth(s_width_pairs, 0.1, widths);
 
     for (const auto& width : widths)
     {
@@ -267,15 +311,36 @@ void Lane::fit_lane_width()
 
 Road::Road(const PointVec& refline_points)
 {
+    id_ = GetId();
     refline_ptr_ = std::make_shared<RefLine>();
     length_ = refline_ptr_->fit(refline_points);
 }
 
-void Road::add_lane(const PointVec& left_border, ID id, string type)
+void Road::add_lane(const PointVec& left_border, string type)
 {
-    left_lanes_.emplace_back(id, type, refline_ptr_);
+    left_lanes_.emplace_back(left_lanes_.size() + 1, type, refline_ptr_);
     left_lanes_.back().set_left_border(left_border);
     left_lanes_.back().fit_lane_width();
+}
+
+Road& Road::connect_to(Road& road)
+{
+    link_.successor_id = road.id_;
+    link_.successor_type = "road";
+    link_.successor_contact_point = "start";
+
+    road.link_.predecessor_id = id_;
+    road.link_.predecessor_type = "road";
+    road.link_.predecessor_contact_point = "end";
+
+    for (int i = 0; i < left_lanes_.size(); ++i)
+    {
+        if (i < road.left_lanes_.size())
+        {
+            left_lanes_[i].connect_to(road.left_lanes_[i]);
+        }
+    }
+    return road;
 }
 
 tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
@@ -292,6 +357,22 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     road->InsertEndChild(type);
 
     auto link = doc.NewElement("link");
+    if (link_.predecessor_id > 0)
+    {
+        auto predecessor = doc.NewElement("predecessor");
+        predecessor->SetAttribute("elementId", link_.predecessor_id);
+        predecessor->SetAttribute("elementType", link_.predecessor_type.c_str());
+        predecessor->SetAttribute("contactPoint", link_.predecessor_contact_point.c_str());
+        link->InsertEndChild(predecessor);
+    }
+    if (link_.successor_id > 0)
+    {
+        auto successor = doc.NewElement("successor");
+        successor->SetAttribute("elementId", link_.successor_id);
+        successor->SetAttribute("elementType", link_.successor_type.c_str());
+        successor->SetAttribute("contactPoint", link_.successor_contact_point.c_str());
+        link->InsertEndChild(successor);
+    }
     road->InsertEndChild(link);
 
     auto planView = refline_ptr_->to_planView_xml(doc);

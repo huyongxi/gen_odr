@@ -8,7 +8,16 @@
 int main()
 {
     OpenDrive opendrive;
-    auto& road1 = opendrive.add_road(test_points4);
-    road1.add_lane(test_points5);
+    auto& road1 = opendrive.add_road(road1_right);
+    road1.add_lane(road1_left, "driving");
+
+    auto& road2 = opendrive.add_road(road2_right);
+    road2.add_lane(road2_left, "driving");
+
+    auto& road3 = opendrive.add_road(road3_right);
+    road3.add_lane(road3_left, "driving");
+
+    road1 >> road2 >> road3;
+
     opendrive.to_xml("test.xml");
 }
