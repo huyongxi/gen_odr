@@ -12,7 +12,10 @@ using PointVec = vector<Vector3d>;
 
 extern double epsilon;
 
-double distance(double x1, double y1, double x2, double y2);
+inline double distance(double x1, double y1, double x2, double y2)
+{
+    return std::sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+}
 double getPositiveHeading(double hdg);
 double getDeltaHdg(double hdg1, double hdg2);
 double giveHeading(double x1, double y1, double x2, double y2);
@@ -24,7 +27,7 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
 std::tuple<double, double, double> getArcEndPosition(double curvature, double length, double xstart, double ystart,
                                                      double hdg_start);
 Vector4d fitCubicSpline(const vector<Vector2d>& points);
-double computeDistance(const Vector2d& point, const Vector4d& coeff);
+inline double computeDistance(const Vector2d& point, const Vector4d& coeff);
 void fitLaneWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths);
 Vector2d fitLinear(PointVec::const_iterator begin, PointVec::const_iterator end);
-Vector3d fitCircle(PointVec::const_iterator begin, PointVec::const_iterator end);
+

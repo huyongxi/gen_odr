@@ -8,11 +8,6 @@
 
 double epsilon = 0.00001;
 
-double distance(double x1, double y1, double x2, double y2)
-{
-    return std::sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
-}
-
 double getPositiveHeading(double hdg)
 {
     while (hdg < 0.0)
@@ -325,36 +320,4 @@ void fitLaneWidth(const vector<Vector2d>& points, double threshold, vector<std::
         s_start = (points.begin() + base)->x();
         widths.push_back(best_fit);
     }
-}
-
-// 圆弧拟合函数
-Vector3d fitCircle(PointVec::const_iterator begin, PointVec::const_iterator end)
-{
-    int n = end - begin;
-    MatrixXd A(n, 3);
-    VectorXd b(n);
-
-    // 构造方程 Ax = b，其中A为设计矩阵，b为结果向量
-    int i = 0;
-    for (auto iter = begin; iter != end; ++iter, ++i)
-    {
-        double x = (*iter)[0];
-        double y = (*iter)[1];
-        A(i, 0) = 2 * x;
-        A(i, 1) = 2 * y;
-        A(i, 2) = 1;
-        b(i) = x * x + y * y;
-    }
-
-    // 使用最小二乘法解线性方程 Ax = b，得到拟合的系数
-    Vector3d coeff = A.colPivHouseholderQr().solve(b);
-
-    // 圆心 (h, k) 和半径 r
-    double h = coeff(0);
-    double k = coeff(1);
-    double r2 = coeff(2);  // r^2
-
-    double r = sqrt(r2 + h * h + k * k);  // 计算半径
-
-    return Vector3d(h, k, r);
 }

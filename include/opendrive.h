@@ -55,7 +55,6 @@ struct RefLine
 {
     vector<shared_ptr<BaseLine>> reflines;
     double fit(const PointVec& refline_points);
-    double fit_refline(const PointVec& refline_points);
     tinyxml2::XMLElement* to_planView_xml(tinyxml2::XMLDocument& doc);
     void sample(vector<RefLinePoint>& points, double step = 0.2);
 };
@@ -100,11 +99,13 @@ class Lane
 
     // void set_right_border(const PointVec& points)
     // {
-    //     right_border_ptr_->fit_refline(points);
+    //     right_border_ptr_->fit(points);
     // }
 
     //拟合车道宽度
     void fit_lane_width();
+    
+    void set_lane_width(double width);
 
     void connect_to(Lane& lane);
 
@@ -139,6 +140,7 @@ class Road
     Road(const PointVec& refline_points);
     tinyxml2::XMLElement* to_road_xml(tinyxml2::XMLDocument& doc);
     void add_lane(const PointVec& left_border, string type = "driving");
+    void add_lane(double width, string type = "driving");
     Road& connect_to(Road& road);
     Road& operator>>(Road& road) { return connect_to(road); }
 };

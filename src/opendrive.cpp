@@ -224,10 +224,10 @@ void Lane::connect_to(Lane& lane)
     lane.link_.predecessor_id = id_;
 }
 
-double calc_distance(const Vector2d& s, double shdg, const Vector2d& p)
+inline double calc_distance(const Vector2d& s, double shdg, const Vector2d& p)
 {
-    double dx = std::cos(shdg) * 1.0;
-    double dy = std::sin(shdg) * 1.0;
+    double dx = std::cos(shdg);
+    double dy = std::sin(shdg);
     return std::abs(dx * (p.x() - s.x()) + dy * (p.y() - s.y())) / std::sqrt(dx * dx + dy * dy);
 }
 
@@ -300,6 +300,17 @@ void Lane::fit_lane_width()
     }
 }
 
+void Lane::set_lane_width(double width)
+{
+    LaneWidth lane_width;
+    lane_width.sOffset = 0.0;
+    lane_width.a = width;
+    lane_width.b = 0.0;
+    lane_width.c = 0.0;
+    lane_width.d = 0.0;
+    lane_widths_.push_back(lane_width);
+}
+
 Road::Road(const PointVec& refline_points)
 {
     id_ = GetId();
@@ -312,6 +323,12 @@ void Road::add_lane(const PointVec& left_border, string type)
     left_lanes_.emplace_back(left_lanes_.size() + 1, type, refline_ptr_);
     left_lanes_.back().set_left_border(left_border);
     left_lanes_.back().fit_lane_width();
+}
+
+void Road::add_lane(double width, string type)
+{
+    left_lanes_.emplace_back(left_lanes_.size() + 1, type, refline_ptr_);
+    left_lanes_.back().set_lane_width(width);
 }
 
 Road& Road::connect_to(Road& road)

@@ -1,9 +1,8 @@
+#include <iostream>
+
 #include "arc_curves.h"
 #include "opendrive.h"
 #include "test_data.h"
-
-#include <iostream>
-
 
 int main()
 {
@@ -20,7 +19,9 @@ int main()
     auto& road4 = opendrive.add_road(road4_right);
     road4.add_lane(road4_left, "driving");
 
-    road1 >> road2 >> road3;
+    auto& road5 = opendrive.add_road(road5_right);
+    road5.add_lane(3);
 
-    opendrive.to_xml("test.xml");
+    road1 >> road2 >> road3;
+    opendrive.to_xml("test.xodr");
 }
