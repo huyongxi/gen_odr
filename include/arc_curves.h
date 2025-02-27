@@ -30,4 +30,3 @@ Vector4d fitCubicSpline(const vector<Vector2d>& points);
 inline double computeDistance(const Vector2d& point, const Vector4d& coeff);
 void fitLaneWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths);
 Vector2d fitLinear(PointVec::const_iterator begin, PointVec::const_iterator end);
-

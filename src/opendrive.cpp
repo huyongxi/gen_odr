@@ -11,6 +11,9 @@
 
 #include "arc_curves.h"
 
+namespace ODR
+{
+
 ID GetId()
 {
     static std::atomic<ID> id{0};
@@ -462,3 +465,5 @@ Road& OpenDrive::add_road(const PointVec& refline_points)
     roads_.emplace_back(refline_points);
     return roads_.back();
 }
+
+}  // namespace ODR

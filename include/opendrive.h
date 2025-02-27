@@ -15,6 +15,9 @@ using std::vector;
 
 using ID = int64_t;
 
+namespace ODR
+{
+
 ID GetId();
 
 struct BaseLine
@@ -104,7 +107,7 @@ class Lane
 
     //拟合车道宽度
     void fit_lane_width();
-    
+
     void set_lane_width(double width);
 
     void connect_to(Lane& lane);
@@ -171,3 +174,5 @@ class OpenDrive
     void to_xml(const string& filename);
     Road& add_road(const PointVec& refline_points);
 };
+
+}  // namespace ODR

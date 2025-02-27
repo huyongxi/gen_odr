@@ -1,12 +1,13 @@
 #include <iostream>
 
 #include "arc_curves.h"
+#include "json_map.h"
 #include "opendrive.h"
 #include "test_data.h"
 
 int main()
 {
-    OpenDrive opendrive;
+    ODR::OpenDrive opendrive;
     auto& road1 = opendrive.add_road(road1_right);
     road1.add_lane(road1_left, "driving");
 
@@ -24,4 +25,7 @@ int main()
 
     road1 >> road2 >> road3;
     opendrive.to_xml("test.xodr");
+
+    JsonMap::Map map;
+    std::cout << map.from_json("map.json") << std::endl;
 }
