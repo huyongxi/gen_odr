@@ -226,66 +226,36 @@ void Lane::connect_to(Lane& lane)
 
 double calc_distance(const Vector2d& s, double shdg, const Vector2d& p)
 {
-    double hdg = giveHeading(s.x(), s.y(), p.x(), p.y());
-    double deltaHdg = getDeltaHdg(hdg, shdg);
-    return distance(s.x(), s.y(), p.x(), p.y()) * std::cos(deltaHdg);
+    double dx = std::cos(shdg) * 1.0;
+    double dy = std::sin(shdg) * 1.0;
+    return std::abs(dx * (p.x() - s.x()) + dy * (p.y() - s.y())) / std::sqrt(dx * dx + dy * dy);
 }
 
 void calc_width(const vector<RefLinePoint>& ref, const vector<RefLinePoint>& border, vector<Vector2d>& s_width_pairs)
 {
-    double min_distance = 0.0;
     for (const auto& rp : ref)
     {
-        double mind = 1000;
-        double dx = 0.0;
-        for (const auto& p: border)
+        double min_distance = 10000.0;
+        Vector2d min_p;
+
+        for (const auto& p : border)
         {
-            double d = calc_distance({rp.x, rp.y}, rp.hdg, {p.x, p.y});
-            if (d < mind)
-            {
-                mind = d;
-                dx = distance(rp.x, rp.y, p.x, p.y);
-            }
-        }
-        std::cout << rp.s << "-->" << mind << " " << dx << std::endl;
-
-        auto iter = std::lower_bound(border.begin(), border.end(), rp.s);
-        if (iter == border.end())
-        {
-            s_width_pairs.push_back({rp.s, min_distance});
-            continue;
-        }
-
-        auto index = std::distance(border.begin(), iter);
-
-        min_distance = distance(rp.x, rp.y, iter->x, iter->y);
-
-        auto min_iter = iter + 1;
-
-        while (min_iter != border.end())
-        {
-            double dis = distance(rp.x, rp.y, min_iter->x, min_iter->y);
+            double dis = calc_distance({rp.x, rp.y}, rp.hdg, {p.x, p.y});
             if (dis < min_distance)
             {
                 min_distance = dis;
-            } else
-            {
-                break;
+                min_p = {p.x, p.y};
             }
-            ++min_iter;
         }
 
-        while (--index >= 0)
+        if (min_distance > 0.2)
         {
-            double dis = distance(rp.x, rp.y, border[index].x, border[index].y);
-            if (dis < min_distance)
-            {
-                min_distance = dis;
-            } else
-            {
-                break;
-            }
+            min_distance = 0;
+        } else
+        {
+            min_distance = distance(rp.x, rp.y, min_p.x(), min_p.y());
         }
+
         s_width_pairs.push_back({rp.s, min_distance});
     }
 }
@@ -298,25 +268,22 @@ void Lane::fit_lane_width()
     vector<RefLinePoint> left_border_sample_points;
     left_border_ptr_->sample(left_border_sample_points);
 
-    vector<Vector2d> s_width_pairs1;
-    vector<Vector2d> s_width_pairs2;
     vector<Vector2d> s_width_pairs;
 
-    calc_width(refline_sample_points, left_border_sample_points, s_width_pairs1);
-    calc_width(left_border_sample_points, refline_sample_points, s_width_pairs2);
+    calc_width(refline_sample_points, left_border_sample_points, s_width_pairs);
+    auto pred = [](const Vector2d& v) { return std::abs(v[1]) > epsilon ? true : false; };
+    auto iter1 = std::find_if(s_width_pairs.begin(), s_width_pairs.end(), pred);
+    auto iter2 = std::find_if(s_width_pairs.rbegin(), s_width_pairs.rend(), pred);
 
-    for (int i = 0; i < s_width_pairs1.size(); ++i)
+    for (auto iter = s_width_pairs.begin(); iter != iter1; ++iter)
     {
-        if (i < s_width_pairs2.size())
-        {
-            s_width_pairs.push_back({s_width_pairs1[i].x(), std::min(s_width_pairs1[i].y(), s_width_pairs2[i].y())});
-        } else
-        {
-            s_width_pairs.push_back({s_width_pairs1[i].x(), s_width_pairs.back().y()});
-        }
-        std::cout << "(" << s_width_pairs.back()[0] << ", " << s_width_pairs.back()[1] << "),";
+        iter->y() = iter1->y();
     }
-    std::cout << std::endl;
+
+    for (auto iter = s_width_pairs.rbegin(); iter != iter2; ++iter)
+    {
+        iter->y() = iter2->y();
+    }
 
     vector<std::pair<double, Vector4d>> widths;
     fitLaneWidth(s_width_pairs, 0.1, widths);
