@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(gen_odr)
 
-
+set(CXX_STANDARD 17)
+set(CXX_STANDARD_REQUIRED TRUE)
 
 set(eigen /home/hyx/data/install_dir/include/eigen-3.4.0)
 set(nlohmann /home/hyx/data/install_dir/include/json-3.11.3/include)

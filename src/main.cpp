@@ -27,5 +27,9 @@ int main()
     opendrive.to_xml("test.xodr");
 
     JsonMap::Map map;
-    std::cout << map.from_json("map.json") << std::endl;
+    if (map.from_json("map.json"))
+    {
+        map.to_xodr("map.xodr");
+    }
+    
 }

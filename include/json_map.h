@@ -17,12 +17,14 @@ struct Road
     ID end_node;
     PointVec ref_line;
     vector<Lane> Lanes;
+    ODR::Road* odr_road;
 };
 
 class Map
 {
    private:
     vector<Road> roads_;
+    ODR::OpenDrive opendrive_;
 
    public:
     bool from_json(string file_name);

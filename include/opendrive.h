@@ -132,7 +132,7 @@ class Road
     ID id_;
     ID junction_id_{-1};
     string name_;
-    string rule_{"RHT"};
+    string rule_{"LHT"};
     double length_;
     shared_ptr<RefLine> refline_ptr_;
     vector<Lane> left_lanes_;

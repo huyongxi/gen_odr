@@ -43,7 +43,7 @@ double getDeltaHdg(double hdg1, double hdg2)
 
 double giveHeading(double x1, double y1, double x2, double y2)
 {
-    assert(!(std::abs(x1 - x2) > epsilon && std::abs(y1 - y2) < epsilon));  // 确保 x1, y1 和 x2, y2 不相同
+    assert(!(std::abs(x1 - x2) < epsilon && std::abs(y1 - y2) < epsilon));  // 确保 x1, y1 和 x2, y2 不相同
 
     double x_arr[2] = {x1, x2};
     double y_arr[2] = {y1, y2};

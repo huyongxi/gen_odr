@@ -1,5 +1,5 @@
 #include "json_map.h"
-
+#include <unordered_map>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -57,5 +57,52 @@ bool Map::from_json(string file_name)
     return false;
 }
 
-void Map::to_xodr(string file_name) {}
+
+struct LinkNode
+{
+    ID id;
+    vector<Road*> from;
+    vector<Road*> to;
+};
+
+void Map::to_xodr(string file_name) 
+{   
+    
+    std::unordered_map<ID, LinkNode> links;
+    for (auto& road : roads_)
+    {
+        auto& r = opendrive_.add_road(road.ref_line);
+        for (const auto& lane : road.Lanes)
+        {
+            r.add_lane(lane.line);
+        }
+        road.odr_road = &r;
+
+        links[road.end_node].from.push_back(&road);
+        links[road.start_node].to.push_back(&road);
+    }
+
+    for (const auto& link : links)
+    {
+        if (link.second.from.size() == 1)
+        {
+            for (const auto& to : link.second.to)
+            {
+                *(link.second.from[0]->odr_road) >> *(to->odr_road);
+            }
+            continue;
+        }
+
+        if (link.second.to.size() == 1)
+        {
+            for (const auto& from : link.second.from)
+            {
+                *(from->odr_road) >> *(link.second.to[0]->odr_road);
+            }
+        }
+    }
+
+
+    opendrive_.to_xml(file_name);
+}
 }  // namespace JsonMap

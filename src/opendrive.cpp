@@ -59,6 +59,8 @@ tinyxml2::XMLElement* RefLine::to_planView_xml(tinyxml2::XMLDocument& doc)
 
 double RefLine::fit(const PointVec& refline_points)
 {
+    assert(refline_points.size() > 2);
+
     double s = 0.0;
 
     for (int i = 0; i < refline_points.size() - 2; ++i)
@@ -391,7 +393,7 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     road->SetAttribute("name", name_.c_str());
     road->SetAttribute("length", length_);
     road->SetAttribute("junction", junction_id_);
-    road->SetAttribute("rule", "LHT");
+    road->SetAttribute("rule", rule_.c_str());
     road->InsertEndChild(planView);
 
     auto lanes = doc.NewElement("lanes");
