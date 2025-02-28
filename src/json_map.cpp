@@ -60,7 +60,7 @@ bool Map::from_json(string file_name)
 
 struct LinkNode
 {
-    ID id;
+    //ID id;
     vector<Road*> from;
     vector<Road*> to;
 };

@@ -27,7 +27,7 @@ int main()
     opendrive.to_xml("test.xodr");
 
     JsonMap::Map map;
-    if (map.from_json("map.json"))
+    if (map.from_json("road1.json"))
     {
         map.to_xodr("map.xodr");
     }

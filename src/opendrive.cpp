@@ -59,7 +59,21 @@ tinyxml2::XMLElement* RefLine::to_planView_xml(tinyxml2::XMLDocument& doc)
 
 double RefLine::fit(const PointVec& refline_points)
 {
-    assert(refline_points.size() > 2);
+    assert(refline_points.size() > 1);
+
+    if (refline_points.size() == 2)
+    {
+        auto line = std::make_shared<StraightLine>();
+        line->s = 0.0;
+        line->x = refline_points[0].x();
+        line->y = refline_points[0].y();
+        line->hdg =
+            giveHeading(refline_points[0].x(), refline_points[0].y(), refline_points[1].x(), refline_points[1].y());
+        line->length =
+            distance(refline_points[0].x(), refline_points[0].y(), refline_points[1].x(), refline_points[1].y());
+        reflines.push_back(line);
+        return line->length;
+    }
 
     double s = 0.0;
 
