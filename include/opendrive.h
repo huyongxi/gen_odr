@@ -28,7 +28,10 @@ struct BaseLine
     double hdg;  //航向角
     double length;
     virtual ~BaseLine() = default;
-    virtual tinyxml2::XMLElement* to_geometry_xml(tinyxml2::XMLDocument&) { return nullptr; }  //生成xml节点
+    virtual tinyxml2::XMLElement* to_geometry_xml(tinyxml2::XMLDocument&)
+    {
+        return nullptr;
+    }  //生成xml节点
     static tinyxml2::XMLDocument doc;
 };
 
@@ -41,7 +44,7 @@ struct StraightLine : public BaseLine
 //圆弧
 struct ArcLine : public BaseLine
 {
-    double curvature;  //曲率
+    double                        curvature;  //曲率
     virtual tinyxml2::XMLElement* to_geometry_xml(tinyxml2::XMLDocument& doc) override;
 };
 
@@ -57,7 +60,7 @@ struct RefLinePoint
 struct RefLine
 {
     vector<shared_ptr<BaseLine>> reflines;
-    double fit(const PointVec& refline_points);
+    double                       fit(const PointVec& refline_points);
     // 转换为XML元素
     tinyxml2::XMLElement* to_planView_xml(tinyxml2::XMLDocument& doc);
     // 采样参考线点
@@ -83,25 +86,31 @@ struct LaneLink
 class Lane
 {
    private:
-    ID id_;
-    string type_;
-    vector<LaneWidth> lane_widths_;
+    ID                  id_;
+    string              type_;
+    vector<LaneWidth>   lane_widths_;
     shared_ptr<RefLine> refline_ptr_;
     shared_ptr<RefLine> left_border_ptr_;
     shared_ptr<RefLine> right_border_ptr_;
-    LaneLink link_;
+    LaneLink            link_;
 
    public:
     Lane(ID id, string type, shared_ptr<RefLine> refline_ptr) : id_(id), type_(type), refline_ptr_(refline_ptr)
     {
-        left_border_ptr_ = std::make_shared<RefLine>();
+        left_border_ptr_  = std::make_shared<RefLine>();
         right_border_ptr_ = std::make_shared<RefLine>();
     }
 
-    ID get_id() { return id_; }
+    ID get_id()
+    {
+        return id_;
+    }
 
     // 设置左边界，使用提供的点进行拟合
-    void set_left_border(const PointVec& points) { left_border_ptr_->fit(points); }
+    void set_left_border(const PointVec& points)
+    {
+        left_border_ptr_->fit(points);
+    }
 
     // void set_right_border(const PointVec& points)
     // {
@@ -120,10 +129,10 @@ class Lane
 
 struct RoadLink
 {
-    ID predecessor_id{};
+    ID     predecessor_id{};
     string predecessor_type;
     string predecessor_contact_point;
-    ID successor_id{};
+    ID     successor_id{};
     string successor_type;
     string successor_contact_point;
 };
@@ -132,15 +141,15 @@ struct RoadLink
 class Road
 {
    private:
-    ID id_;
-    ID junction_id_{-1};
-    string name_;
-    string rule_{"LHT"};
-    double length_;
+    ID                  id_;
+    ID                  junction_id_{-1};
+    string              name_;
+    string              rule_{"LHT"};
+    double              length_;
     shared_ptr<RefLine> refline_ptr_;
-    vector<Lane> left_lanes_;
-    vector<Lane> right_lanes_;
-    RoadLink link_;
+    vector<Lane>        left_lanes_;
+    vector<Lane>        right_lanes_;
+    RoadLink            link_;
     friend class Junction;
 
    public:
@@ -153,21 +162,24 @@ class Road
     void add_lane(double width, string type = "driving");
     // 将当前道路连接到另一个道路
     Road& connect_to(Road& road);
-    Road& operator>>(Road& road) { return connect_to(road); }
+    Road& operator>>(Road& road)
+    {
+        return connect_to(road);
+    }
 };
 
 class Junction
 {
    private:
-    ID id;
+    ID     id;
     string name;
     struct Link
     {
-        ID incoming_road;
-        ID connecting_road;
+        ID     incoming_road;
+        ID     connecting_road;
         string contact_point{"start"};
-        ID from;
-        ID to;
+        ID     from;
+        ID     to;
     };
     vector<Link> links;
 
@@ -197,12 +209,15 @@ class OpenDrive
 {
    private:
     tinyxml2::XMLDocument doc_;
-    Header header_;
-    vector<Road> roads_;
-    vector<Junction> junctions_;
+    Header                header_;
+    vector<Road>          roads_;
+    vector<Junction>      junctions_;
 
    public:
-    OpenDrive() { roads_.reserve(100); }
+    OpenDrive()
+    {
+        roads_.reserve(100);
+    }
     // 将OpenDrive对象转换为XML文件
     void to_xml(const string& filename);
     // 添加道路

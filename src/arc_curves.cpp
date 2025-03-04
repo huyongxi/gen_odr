@@ -81,8 +81,8 @@ double giveHeading(double x1, double y1, double x2, double y2)
 std::tuple<double, double, double, double> schnittpunkt(double x1, double y1, double hdg1, double x2, double y2,
                                                         double hdg2)
 {
-    const double EPSILON = 0.02;
-    const double PI_2 = M_PI / 2.0;
+    const double EPSILON        = 0.02;
+    const double PI_2           = M_PI / 2.0;
     const double PI_2_THRESHOLD = 0.2;
 
     double r1{};
@@ -126,10 +126,10 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
                                                                                     double y_curveMid, double maxerror,
                                                                                     double minradius, int iterations)
 {
-    double hdg_start = giveHeading(xstart, ystart, x_curveMid, y_curveMid);
+    double hdg_start   = giveHeading(xstart, ystart, x_curveMid, y_curveMid);
     double hdg_mid2end = giveHeading(x_curveMid, y_curveMid, x_end, y_end);
 
-    double deltaHdg = getDeltaHdg(hdg_start, hdg_mid2end);
+    double deltaHdg      = getDeltaHdg(hdg_start, hdg_mid2end);
     double winkelHalbHdg = deltaHdg / 2.0 + hdg_start;
 
     double maxDist =
@@ -143,8 +143,9 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
     double hdg_90_a = hdg_start - M_PI / 2.0;
     double hdg_90_b = hdg_mid2end - M_PI / 2.0;
 
-    double dist = maxDist;
+    double dist     = maxDist;
     double bestDist = dist;
+
     double notWorkingDist = dist;
     double x1, y1, x2, y2, r1, r2, x_s, y_s;
 
@@ -152,6 +153,7 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
     y1 = y_curveMid + dist * std::sin(hdg_start - M_PI);
     x2 = x_curveMid + dist * std::cos(hdg_mid2end);
     y2 = y_curveMid + dist * std::sin(hdg_mid2end);
+
     std::tie(x_s, y_s, r1, r2) = schnittpunkt(x1, y1, hdg_90_a, x2, y2, hdg_90_b);
 
     double error = distance(x_s, y_s, x_curveMid, y_curveMid) - std::abs(r1);
@@ -164,10 +166,11 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
         for (int i = 0; i < iterations; ++i)
         {
             dist = (bestDist + notWorkingDist) / 2.0;
-            x1 = x_curveMid + dist * std::cos(hdg_start - M_PI);
-            y1 = y_curveMid + dist * std::sin(hdg_start - M_PI);
-            x2 = x_curveMid + dist * std::cos(hdg_mid2end);
-            y2 = y_curveMid + dist * std::sin(hdg_mid2end);
+            x1   = x_curveMid + dist * std::cos(hdg_start - M_PI);
+            y1   = y_curveMid + dist * std::sin(hdg_start - M_PI);
+            x2   = x_curveMid + dist * std::cos(hdg_mid2end);
+            y2   = y_curveMid + dist * std::sin(hdg_mid2end);
+
             std::tie(x_s, y_s, r1, r2) = schnittpunkt(x1, y1, hdg_90_a, x2, y2, hdg_90_b);
 
             error = distance(x_s, y_s, x_curveMid, y_curveMid) - std::abs(r1);
@@ -188,7 +191,7 @@ std::tuple<double, double, double, double, double, double> getArcCurvatureAndLen
 
     std::tie(x_s, y_s, r1, r2) = schnittpunkt(x1, y1, hdg_90_a, x2, y2, hdg_90_b);
 
-    double length = std::abs(r1) * std::abs(deltaHdg);
+    double length    = std::abs(r1) * std::abs(deltaHdg);
     double curvature = -deltaHdg / length;
 
     return {x1, y1, x2, y2, curvature, length};
@@ -202,7 +205,7 @@ std::tuple<double, double, double> getArcEndPosition(double curvature, double le
         return {xstart, ystart, hdg_start};
     }
     double deltaHdg = curvature * length;
-    double hdg_end = deltaHdg + hdg_start;
+    double hdg_end  = deltaHdg + hdg_start;
 
     double x_end, y_end;
 
@@ -213,14 +216,14 @@ std::tuple<double, double, double> getArcEndPosition(double curvature, double le
 
         if (curvature < 0.0)
         {
-            x_M = std::cos(hdg_start + M_PI / 2.0) * radius + xstart;
-            y_M = std::sin(hdg_start + M_PI / 2.0) * radius + ystart;
+            x_M   = std::cos(hdg_start + M_PI / 2.0) * radius + xstart;
+            y_M   = std::sin(hdg_start + M_PI / 2.0) * radius + ystart;
             x_end = std::cos(hdg_start - M_PI / 2.0 + deltaHdg) * radius + x_M;
             y_end = std::sin(hdg_start - M_PI / 2.0 + deltaHdg) * radius + y_M;
         } else
         {
-            x_M = std::cos(hdg_start + M_PI / 2.0) * radius + xstart;
-            y_M = std::sin(hdg_start + M_PI / 2.0) * radius + ystart;
+            x_M   = std::cos(hdg_start + M_PI / 2.0) * radius + xstart;
+            y_M   = std::sin(hdg_start + M_PI / 2.0) * radius + ystart;
             x_end = std::cos(hdg_start - M_PI / 2.0 + deltaHdg) * radius + x_M;
             y_end = std::sin(hdg_start - M_PI / 2.0 + deltaHdg) * radius + y_M;
         }
@@ -236,7 +239,7 @@ std::tuple<double, double, double> getArcEndPosition(double curvature, double le
 // 一元线性曲线拟合函数
 Vector2d fitLinear(PointVec::const_iterator begin, PointVec::const_iterator end)
 {
-    int n = end - begin;
+    int      n = end - begin;
     MatrixXd A(n, 2);
     VectorXd b(n);
 
@@ -244,9 +247,9 @@ Vector2d fitLinear(PointVec::const_iterator begin, PointVec::const_iterator end)
     for (auto iter = begin; iter != end; ++iter, ++i)
     {
         double x = (*iter)[0];
-        A(i, 0) = 1;
-        A(i, 1) = x;
-        b(i) = (*iter)[1];
+        A(i, 0)  = 1;
+        A(i, 1)  = x;
+        b(i)     = (*iter)[1];
     }
 
     Vector2d coeff = A.colPivHouseholderQr().solve(b);
@@ -256,7 +259,7 @@ Vector2d fitLinear(PointVec::const_iterator begin, PointVec::const_iterator end)
 // 一元三次曲线拟合函数
 Vector4d fitCubicSpline(const vector<Vector2d>& points)
 {
-    int n = points.size();
+    int      n = points.size();
     MatrixXd A(n, 4);
     VectorXd b(n);
 
@@ -264,11 +267,11 @@ Vector4d fitCubicSpline(const vector<Vector2d>& points)
     for (int i = 0; i < n; ++i)
     {
         double x = points[i][0];
-        A(i, 0) = 1;
-        A(i, 1) = x;
-        A(i, 2) = x * x;
-        A(i, 3) = x * x * x;
-        b(i) = points[i][1];
+        A(i, 0)  = 1;
+        A(i, 1)  = x;
+        A(i, 2)  = x * x;
+        A(i, 3)  = x * x * x;
+        b(i)     = points[i][1];
     }
 
     // 使用最小二乘法解线性方程 Ax = b，得到拟合的系数
@@ -289,7 +292,8 @@ double computeDistance(const Vector2d& point, const Vector4d& coeff)
 void fitLaneWidth(const vector<Vector2d>& points, double threshold, vector<std::pair<double, Vector4d>>& widths)
 {
     double s_start = 0.0;
-    int base = 0;
+    int    base    = 0;
+
     std::pair<double, Vector4d> best_fit;
     while (base < points.size() - 1)
     {
@@ -298,8 +302,8 @@ void fitLaneWidth(const vector<Vector2d>& points, double threshold, vector<std::
         {
             vector<Vector2d> sub_points(points.begin() + base, points.begin() + base + i + 1);
             std::for_each(sub_points.begin(), sub_points.end(), [=](Vector2d& p) { p[0] -= s_start; });
-            Vector4d cubic_coeff = fitCubicSpline(sub_points);
-            double max_cubic_error = 0.0;
+            Vector4d cubic_coeff     = fitCubicSpline(sub_points);
+            double   max_cubic_error = 0.0;
             for (const auto& sub_point : sub_points)
             {
                 auto dis = computeDistance(sub_point, cubic_coeff);

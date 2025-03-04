@@ -6,24 +6,24 @@ namespace JsonMap
 
 struct Lane
 {
-    ID start_node;
-    ID end_node;
+    ID       start_node;
+    ID       end_node;
     PointVec line;
 };
 
 struct Road
 {
-    ID start_node;
-    ID end_node;
-    PointVec ref_line;
+    ID           start_node;
+    ID           end_node;
+    PointVec     ref_line;
     vector<Lane> Lanes;
-    ODR::Road* odr_road;
+    ODR::Road*   odr_road;
 };
 
 class Map
 {
    private:
-    vector<Road> roads_;
+    vector<Road>   roads_;
     ODR::OpenDrive opendrive_;
 
    public:

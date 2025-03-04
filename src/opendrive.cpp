@@ -64,9 +64,9 @@ double RefLine::fit(const PointVec& refline_points)
     if (refline_points.size() == 2)
     {
         auto line = std::make_shared<StraightLine>();
-        line->s = 0.0;
-        line->x = refline_points[0].x();
-        line->y = refline_points[0].y();
+        line->s   = 0.0;
+        line->x   = refline_points[0].x();
+        line->y   = refline_points[0].y();
         line->hdg =
             giveHeading(refline_points[0].x(), refline_points[0].y(), refline_points[1].x(), refline_points[1].y());
         line->length =
@@ -79,12 +79,12 @@ double RefLine::fit(const PointVec& refline_points)
 
     for (int i = 0; i < refline_points.size() - 2; ++i)
     {
-        double x1 = refline_points[i].x();
-        double y1 = refline_points[i].y();
-        double x2 = refline_points[i + 1].x();
-        double y2 = refline_points[i + 1].y();
-        double x3 = refline_points[i + 2].x();
-        double y3 = refline_points[i + 2].y();
+        double x1  = refline_points[i].x();
+        double y1  = refline_points[i].y();
+        double x2  = refline_points[i + 1].x();
+        double y2  = refline_points[i + 1].y();
+        double x3  = refline_points[i + 2].x();
+        double y3  = refline_points[i + 2].y();
         double hdg = giveHeading(x1, y1, x2, y2);
 
         if (i != 0)
@@ -107,11 +107,11 @@ double RefLine::fit(const PointVec& refline_points)
             // std::cout << "xstart: " << x1 << " ystart: " << y1 << " length: " << distance(x1, y1, xarc, yarc)
             //           << " heading: " << hdg << " curvature: " << 0.0 << std::endl;
 
-            auto line = std::make_shared<StraightLine>();
-            line->s = s;
-            line->x = x1;
-            line->y = y1;
-            line->hdg = hdg;
+            auto line    = std::make_shared<StraightLine>();
+            line->s      = s;
+            line->x      = x1;
+            line->y      = y1;
+            line->hdg    = hdg;
             line->length = distance(x1, y1, xarc, yarc);
             s += line->length;
             reflines.push_back(line);
@@ -122,22 +122,22 @@ double RefLine::fit(const PointVec& refline_points)
 
         if (std::abs(curvature) < epsilon)
         {
-            auto line = std::make_shared<StraightLine>();
-            line->s = s;
-            line->x = xarc;
-            line->y = yarc;
-            line->hdg = hdg;
+            auto line    = std::make_shared<StraightLine>();
+            line->s      = s;
+            line->x      = xarc;
+            line->y      = yarc;
+            line->hdg    = hdg;
             line->length = length;
             s += line->length;
             reflines.push_back(line);
         } else
         {
-            auto arc = std::make_shared<ArcLine>();
-            arc->s = s;
-            arc->x = xarc;
-            arc->y = yarc;
-            arc->hdg = hdg;
-            arc->length = length;
+            auto arc       = std::make_shared<ArcLine>();
+            arc->s         = s;
+            arc->x         = xarc;
+            arc->y         = yarc;
+            arc->hdg       = hdg;
+            arc->length    = length;
             arc->curvature = curvature;
             s += arc->length;
             reflines.push_back(arc);
@@ -150,11 +150,11 @@ double RefLine::fit(const PointVec& refline_points)
             //           << " heading: " << giveHeading(xendline, yendline, x3, y3) << " curvature: " << 0.0 <<
             //           std::endl;
 
-            auto line = std::make_shared<StraightLine>();
-            line->s = s;
-            line->x = xendline;
-            line->y = yendline;
-            line->hdg = giveHeading(xendline, yendline, x3, y3);
+            auto line    = std::make_shared<StraightLine>();
+            line->s      = s;
+            line->x      = xendline;
+            line->y      = yendline;
+            line->hdg    = giveHeading(xendline, yendline, x3, y3);
             line->length = distance(xendline, yendline, x3, y3);
             s += line->length;
             reflines.push_back(line);
@@ -166,7 +166,7 @@ double RefLine::fit(const PointVec& refline_points)
 
 void RefLine::sample(vector<RefLinePoint>& points, double step)
 {
-    double s_sum = 0.0;
+    double s_sum   = 0.0;
     double s_start = 0.0;
     for (auto& line : reflines)
     {
@@ -176,10 +176,10 @@ void RefLine::sample(vector<RefLinePoint>& points, double step)
             for (; s < straight_line->length; s += step)
             {
                 RefLinePoint point;
-                double hdg;
+                double       hdg;
                 std::tie(point.x, point.y, hdg) =
                     getArcEndPosition(0.0, s, straight_line->x, straight_line->y, straight_line->hdg);
-                point.s = s_sum;
+                point.s   = s_sum;
                 point.hdg = hdg;
                 s_sum += step;
                 points.push_back(point);
@@ -192,10 +192,10 @@ void RefLine::sample(vector<RefLinePoint>& points, double step)
             for (; s < arc->length; s += step)
             {
                 RefLinePoint point;
-                double hdg;
+                double       hdg;
                 std::tie(point.x, point.y, hdg) = getArcEndPosition(arc->curvature, s, arc->x, arc->y, arc->hdg);
-                point.s = s_sum;
-                point.hdg = hdg;
+                point.s                         = s_sum;
+                point.hdg                       = hdg;
                 s_sum += step;
                 points.push_back(point);
             }
@@ -239,7 +239,7 @@ tinyxml2::XMLElement* Lane::to_lane_xml(tinyxml2::XMLDocument& doc)
 
 void Lane::connect_to(Lane& lane)
 {
-    link_.successor_id = lane.id_;
+    link_.successor_id        = lane.id_;
     lane.link_.predecessor_id = id_;
 }
 
@@ -254,7 +254,7 @@ void calc_width(const vector<RefLinePoint>& ref, const vector<RefLinePoint>& bor
 {
     for (const auto& rp : ref)
     {
-        double min_distance = 10000.0;
+        double   min_distance = 10000.0;
         Vector2d min_p;
 
         for (const auto& p : border)
@@ -263,7 +263,7 @@ void calc_width(const vector<RefLinePoint>& ref, const vector<RefLinePoint>& bor
             if (dis < min_distance)
             {
                 min_distance = dis;
-                min_p = {p.x, p.y};
+                min_p        = {p.x, p.y};
             }
         }
 
@@ -290,7 +290,7 @@ void Lane::fit_lane_width()
     vector<Vector2d> s_width_pairs;
 
     calc_width(refline_sample_points, left_border_sample_points, s_width_pairs);
-    auto pred = [](const Vector2d& v) { return std::abs(v[1]) > epsilon ? true : false; };
+    auto pred  = [](const Vector2d& v) { return std::abs(v[1]) > epsilon ? true : false; };
     auto iter1 = std::find_if(s_width_pairs.begin(), s_width_pairs.end(), pred);
     auto iter2 = std::find_if(s_width_pairs.rbegin(), s_width_pairs.rend(), pred);
 
@@ -311,10 +311,10 @@ void Lane::fit_lane_width()
     {
         LaneWidth lane_width;
         lane_width.sOffset = width.first;
-        lane_width.a = width.second[0];
-        lane_width.b = width.second[1];
-        lane_width.c = width.second[2];
-        lane_width.d = width.second[3];
+        lane_width.a       = width.second[0];
+        lane_width.b       = width.second[1];
+        lane_width.c       = width.second[2];
+        lane_width.d       = width.second[3];
         lane_widths_.push_back(lane_width);
     }
 }
@@ -323,19 +323,19 @@ void Lane::set_lane_width(double width)
 {
     LaneWidth lane_width;
     lane_width.sOffset = 0.0;
-    lane_width.a = width;
-    lane_width.b = 0.0;
-    lane_width.c = 0.0;
-    lane_width.d = 0.0;
+    lane_width.a       = width;
+    lane_width.b       = 0.0;
+    lane_width.c       = 0.0;
+    lane_width.d       = 0.0;
     lane_widths_.push_back(lane_width);
 }
 
 Road::Road(const PointVec& refline_points)
 {
-    id_ = GetId();
-    name_ = "road" + std::to_string(id_);
+    id_          = GetId();
+    name_        = "road" + std::to_string(id_);
     refline_ptr_ = std::make_shared<RefLine>();
-    length_ = refline_ptr_->fit(refline_points);
+    length_      = refline_ptr_->fit(refline_points);
 }
 
 void Road::add_lane(const PointVec& left_border, string type)
@@ -353,12 +353,12 @@ void Road::add_lane(double width, string type)
 
 Road& Road::connect_to(Road& road)
 {
-    link_.successor_id = road.id_;
-    link_.successor_type = "road";
+    link_.successor_id            = road.id_;
+    link_.successor_type          = "road";
     link_.successor_contact_point = "start";
 
-    road.link_.predecessor_id = id_;
-    road.link_.predecessor_type = "road";
+    road.link_.predecessor_id            = id_;
+    road.link_.predecessor_type          = "road";
     road.link_.predecessor_contact_point = "end";
 
     for (int i = 0; i < left_lanes_.size(); ++i)
@@ -417,12 +417,12 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     road->SetAttribute("rule", rule_.c_str());
     road->InsertEndChild(planView);
 
-    auto lanes = doc.NewElement("lanes");
+    auto lanes       = doc.NewElement("lanes");
     auto lanesection = doc.NewElement("laneSection");
     lanesection->SetAttribute("s", 0.0);
-    auto left = doc.NewElement("left");
+    auto left   = doc.NewElement("left");
     auto center = doc.NewElement("center");
-    auto right = doc.NewElement("right");
+    auto right  = doc.NewElement("right");
 
     for (auto& lane : left_lanes_)
     {
@@ -472,21 +472,21 @@ tinyxml2::XMLElement* Junction::to_junction_xml(tinyxml2::XMLDocument& doc)
 void Junction::add_connect_road(Road& incoming_road, Road& connecting_road)
 {
     Junction::Link link;
-    link.incoming_road = incoming_road.id_;
+    link.incoming_road   = incoming_road.id_;
     link.connecting_road = connecting_road.id_;
-    link.contact_point = "start";
+    link.contact_point   = "start";
     for (int i = 0; i < incoming_road.left_lanes_.size() && i < connecting_road.left_lanes_.size(); ++i)
     {
         link.from = incoming_road.left_lanes_[i].get_id();
-        link.to = connecting_road.left_lanes_[i].get_id();
+        link.to   = connecting_road.left_lanes_[i].get_id();
         links.push_back(link);
     }
 
     incoming_road.link_.successor_type = "junction";
-    incoming_road.link_.successor_id = id;
+    incoming_road.link_.successor_id   = id;
 
     connecting_road.link_.predecessor_type = "junction";
-    connecting_road.link_.predecessor_id = id;
+    connecting_road.link_.predecessor_id   = id;
 
     connecting_road.junction_id_ = id;
 }
@@ -498,13 +498,13 @@ void OpenDrive::to_xml(const string& filename)
     Header header;
     header.revMajor = "1";
     header.revMinor = "4";
-    header.version = "1.0.0";
-    header.date = "2025-02-14";
-    header.north = 0.0;
-    header.south = 0.0;
-    header.east = 0.0;
-    header.west = 0.0;
-    header.vendor = "Gen OpenDRIVE";
+    header.version  = "1.0.0";
+    header.date     = "2025-02-14";
+    header.north    = 0.0;
+    header.south    = 0.0;
+    header.east     = 0.0;
+    header.west     = 0.0;
+    header.vendor   = "Gen OpenDRIVE";
     auto header_xml = doc_.NewElement("header");
     header_xml->SetAttribute("revMajor", header.revMajor.c_str());
     header_xml->SetAttribute("revMinor", header.revMinor.c_str());

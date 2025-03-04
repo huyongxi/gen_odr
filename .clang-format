@@ -1,15 +1,19 @@
 Language:     Cpp
 BasedOnStyle: Google
-ColumnLimit:  120
-IndentWidth:  4
-TabWidth:  4
-BreakBeforeBraces: Custom
+ColumnLimit:   120  # 每行代码的最大字符数限制为 120
+IndentWidth:   4  # 缩进宽度为 4 个空格
+TabWidth:      4  # Tab 字符的宽度为 4 个空格
+BreakBeforeBraces: Custom  # 使用自定义的花括号换行规则
 BraceWrapping:
-    AfterEnum: true
-    AfterStruct: true
-    AfterCaseLabel: true
-    AfterClass: true
-    AfterControlStatement: Always
-    AfterFunction: true
-    AfterNamespace: true
-    BeforeLambdaBody: true
+    AfterEnum: true  # 在枚举后换行
+    AfterStruct: true  # 在结构体后换行
+    AfterCaseLabel: true  # 在 case 标签后换行
+    AfterClass: true  # 在类定义后换行
+    AfterControlStatement: Always  # 在控制语句（如 if、for、while）后总是换行
+    AfterFunction: true  # 在函数定义后换行
+    AfterNamespace: true  # 在命名空间后换行
+    BeforeLambdaBody: true  # 在 lambda 表达式体之前换行
+AlignConsecutiveAssignments: true  # 对齐连续的赋值语句
+AlignConsecutiveDeclarations: true  # 对齐连续的声明语句
+AllowShortFunctionsOnASingleLine: Empty  # 允许空的短函数在单行上
+AllowShortIfStatementsOnASingleLine: Never  # 不允许短的 if 语句在单行上

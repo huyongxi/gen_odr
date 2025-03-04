@@ -1,7 +1,8 @@
 #include "json_map.h"
-#include <unordered_map>
+
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <unordered_map>
 
 using std::ifstream;
 using json = nlohmann::json;
@@ -26,7 +27,7 @@ bool Map::from_json(string file_name)
             {
                 Road road;
                 road.start_node = rd["startNode"]["id"];
-                road.end_node = rd["endNode"]["id"];
+                road.end_node   = rd["endNode"]["id"];
 
                 for (auto& point : rd["geometry"]["coordinates"])
                 {
@@ -37,7 +38,7 @@ bool Map::from_json(string file_name)
                 {
                     Lane lane;
                     lane.start_node = border["startNode"]["id"];
-                    lane.end_node = border["endNode"]["id"];
+                    lane.end_node   = border["endNode"]["id"];
                     for (auto& point : border["geometry"]["coordinates"])
                     {
                         lane.line.emplace_back(point["x"], point["y"], point["z"]);
@@ -57,17 +58,15 @@ bool Map::from_json(string file_name)
     return false;
 }
 
-
 struct LinkNode
 {
-    //ID id;
+    // ID id;
     vector<Road*> from;
     vector<Road*> to;
 };
 
-void Map::to_xodr(string file_name) 
-{   
-    
+void Map::to_xodr(string file_name)
+{
     std::unordered_map<ID, LinkNode> links;
     for (auto& road : roads_)
     {
@@ -101,7 +100,6 @@ void Map::to_xodr(string file_name)
             }
         }
     }
-
 
     opendrive_.to_xml(file_name);
 }

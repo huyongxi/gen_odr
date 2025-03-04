@@ -8,6 +8,7 @@
 int main()
 {
     ODR::OpenDrive opendrive;
+
     auto& road1 = opendrive.add_road(road1_right);
     road1.add_lane(road1_left, "driving");
 
@@ -23,7 +24,6 @@ int main()
     auto& road5 = opendrive.add_road(road5_right);
     road5.add_lane(3);
 
-
     auto& road6 = opendrive.add_road(PointVec(road3_left.rbegin(), road3_left.rend()));
     road6.add_lane(PointVec(road3_right.rbegin(), road3_right.rend()), "driving");
 
@@ -35,5 +35,4 @@ int main()
     {
         map.to_xodr("map.xodr");
     }
-    
 }
