@@ -23,6 +23,10 @@ int main()
     auto& road5 = opendrive.add_road(road5_right);
     road5.add_lane(3);
 
+
+    auto& road6 = opendrive.add_road(PointVec(road3_left.rbegin(), road3_left.rend()));
+    road6.add_lane(PointVec(road3_right.rbegin(), road3_right.rend()), "driving");
+
     road1 >> road2 >> road3;
     opendrive.to_xml("test.xodr");
 

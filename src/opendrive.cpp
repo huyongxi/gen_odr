@@ -333,6 +333,7 @@ void Lane::set_lane_width(double width)
 Road::Road(const PointVec& refline_points)
 {
     id_ = GetId();
+    name_ = "road" + std::to_string(id_);
     refline_ptr_ = std::make_shared<RefLine>();
     length_ = refline_ptr_->fit(refline_points);
 }
@@ -389,7 +390,10 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
         auto predecessor = doc.NewElement("predecessor");
         predecessor->SetAttribute("elementId", link_.predecessor_id);
         predecessor->SetAttribute("elementType", link_.predecessor_type.c_str());
-        predecessor->SetAttribute("contactPoint", link_.predecessor_contact_point.c_str());
+        if (link_.predecessor_type == "road")
+        {
+            predecessor->SetAttribute("contactPoint", link_.predecessor_contact_point.c_str());
+        }
         link->InsertEndChild(predecessor);
     }
     if (link_.successor_id > 0)
@@ -397,7 +401,10 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
         auto successor = doc.NewElement("successor");
         successor->SetAttribute("elementId", link_.successor_id);
         successor->SetAttribute("elementType", link_.successor_type.c_str());
-        successor->SetAttribute("contactPoint", link_.successor_contact_point.c_str());
+        if (link_.successor_type == "road")
+        {
+            successor->SetAttribute("contactPoint", link_.successor_contact_point.c_str());
+        }
         link->InsertEndChild(successor);
     }
     road->InsertEndChild(link);
@@ -440,6 +447,48 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     road->InsertEndChild(lanes);
 
     return road;
+}
+
+tinyxml2::XMLElement* Junction::to_junction_xml(tinyxml2::XMLDocument& doc)
+{
+    tinyxml2::XMLElement* junction = doc.NewElement("junction");
+    junction->SetAttribute("id", id);
+    junction->SetAttribute("name", name.c_str());
+    for (auto& link : links)
+    {
+        auto connection = doc.NewElement("connection");
+        connection->SetAttribute("incomingRoad", link.incoming_road);
+        connection->SetAttribute("connectingRoad", link.connecting_road);
+        connection->SetAttribute("contactPoint", link.contact_point.c_str());
+        auto laneLink = doc.NewElement("laneLink");
+        laneLink->SetAttribute("from", link.from);
+        laneLink->SetAttribute("to", link.to);
+        connection->InsertEndChild(laneLink);
+        junction->InsertEndChild(connection);
+    }
+    return junction;
+}
+
+void Junction::add_connect_road(Road& incoming_road, Road& connecting_road)
+{
+    Junction::Link link;
+    link.incoming_road = incoming_road.id_;
+    link.connecting_road = connecting_road.id_;
+    link.contact_point = "start";
+    for (int i = 0; i < incoming_road.left_lanes_.size() && i < connecting_road.left_lanes_.size(); ++i)
+    {
+        link.from = incoming_road.left_lanes_[i].get_id();
+        link.to = connecting_road.left_lanes_[i].get_id();
+        links.push_back(link);
+    }
+
+    incoming_road.link_.successor_type = "junction";
+    incoming_road.link_.successor_id = id;
+
+    connecting_road.link_.predecessor_type = "junction";
+    connecting_road.link_.predecessor_id = id;
+
+    connecting_road.junction_id_ = id;
 }
 
 void OpenDrive::to_xml(const string& filename)

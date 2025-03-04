@@ -58,7 +58,9 @@ struct RefLine
 {
     vector<shared_ptr<BaseLine>> reflines;
     double fit(const PointVec& refline_points);
+    // 转换为XML元素
     tinyxml2::XMLElement* to_planView_xml(tinyxml2::XMLDocument& doc);
+    // 采样参考线点
     void sample(vector<RefLinePoint>& points, double step = 0.2);
 };
 
@@ -98,6 +100,7 @@ class Lane
 
     ID get_id() { return id_; }
 
+    // 设置左边界，使用提供的点进行拟合
     void set_left_border(const PointVec& points) { left_border_ptr_->fit(points); }
 
     // void set_right_border(const PointVec& points)
@@ -107,11 +110,11 @@ class Lane
 
     //拟合车道宽度
     void fit_lane_width();
-
+    // 设置车道宽度为指定值
     void set_lane_width(double width);
-
+    // 将当前车道连接到另一个车道
     void connect_to(Lane& lane);
-
+    // 将当前车道转换为XML元素
     tinyxml2::XMLElement* to_lane_xml(tinyxml2::XMLDocument& doc);
 };
 
@@ -138,14 +141,42 @@ class Road
     vector<Lane> left_lanes_;
     vector<Lane> right_lanes_;
     RoadLink link_;
+    friend class Junction;
 
    public:
     Road(const PointVec& refline_points);
+    // 将道路转换为XML元素
     tinyxml2::XMLElement* to_road_xml(tinyxml2::XMLDocument& doc);
+    // 添加车道，使用左边界点和类型
     void add_lane(const PointVec& left_border, string type = "driving");
+    // 添加车道，使用宽度和类型
     void add_lane(double width, string type = "driving");
+    // 将当前道路连接到另一个道路
     Road& connect_to(Road& road);
     Road& operator>>(Road& road) { return connect_to(road); }
+};
+
+class Junction
+{
+   private:
+    ID id;
+    string name;
+    struct Link
+    {
+        ID incoming_road;
+        ID connecting_road;
+        string contact_point{"start"};
+        ID from;
+        ID to;
+    };
+    vector<Link> links;
+
+   public:
+    Junction() : id(GetId()), name("Junction" + std::to_string(id)) {}
+    // 将交叉口转换为XML元素
+    tinyxml2::XMLElement* to_junction_xml(tinyxml2::XMLDocument& doc);
+    // 添加连接道路
+    void add_connect_road(Road& incoming_road, Road& connecting_road);
 };
 
 struct Header
@@ -168,11 +199,16 @@ class OpenDrive
     tinyxml2::XMLDocument doc_;
     Header header_;
     vector<Road> roads_;
+    vector<Junction> junctions_;
 
    public:
     OpenDrive() { roads_.reserve(100); }
+    // 将OpenDrive对象转换为XML文件
     void to_xml(const string& filename);
+    // 添加道路
     Road& add_road(const PointVec& refline_points);
+    // 添加交叉口
+    Junction& add_junction();
 };
 
 }  // namespace ODR

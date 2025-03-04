@@ -27,7 +27,9 @@ class Map
     ODR::OpenDrive opendrive_;
 
    public:
+    // 从JSON文件加载地图
     bool from_json(string file_name);
+    // 将地图转换为OpenDRIVE格式并保存为文件
     void to_xodr(string file_name);
 };
 
