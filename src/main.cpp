@@ -5,7 +5,7 @@
 #include "opendrive.h"
 #include "test_data.h"
 
-int main()
+void test()
 {
     ODR::OpenDrive opendrive;
 
@@ -30,9 +30,22 @@ int main()
     road1 >> road2 >> road3;
     opendrive.to_xml("test.xodr");
 
+}
+
+int main(int argc, char** argv)
+{
+    if (argc < 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " <json_file>" << std::endl;
+        return 1;
+    }
+
     JsonMap::Map map;
-    if (map.from_json("road1.json"))
+    if (map.from_json(argv[1]))
     {
         map.to_xodr("map.xodr");
+    }else 
+    {
+        std::cerr << "Failed to load map from " << argv[1] << std::endl;
     }
 }
