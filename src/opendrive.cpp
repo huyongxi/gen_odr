@@ -449,6 +449,25 @@ tinyxml2::XMLElement* Road::to_road_xml(tinyxml2::XMLDocument& doc)
     return road;
 }
 
+void Road::connect_by_junction(Road& road, ID junction_id)
+{
+    link_.successor_id   = junction_id;
+    link_.successor_type = "junction";
+
+    for (auto& lane : left_lanes_)
+    {
+        lane.link_.successor_id = {};
+    }
+
+    road.link_.predecessor_type = "junction";
+    road.link_.predecessor_id   = junction_id;
+
+    for (auto& lane : road.left_lanes_)
+    {
+        lane.link_.predecessor_id = {};
+    }
+}
+
 tinyxml2::XMLElement* Junction::to_junction_xml(tinyxml2::XMLDocument& doc)
 {
     tinyxml2::XMLElement* junction = doc.NewElement("junction");
@@ -529,6 +548,12 @@ Road& OpenDrive::add_road(const PointVec& refline_points)
 {
     roads_.emplace_back(refline_points);
     return roads_.back();
+}
+
+Junction& OpenDrive::add_junction()
+{
+    junctions_.emplace_back();
+    return junctions_.back();
 }
 
 }  // namespace ODR

@@ -3,12 +3,14 @@
 
 #include <cstdint>
 #include <ios>
+#include <list>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "arc_curves.h"
 
+using std::list;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -93,6 +95,7 @@ class Lane
     shared_ptr<RefLine> left_border_ptr_;
     shared_ptr<RefLine> right_border_ptr_;
     LaneLink            link_;
+    friend class Road;
 
    public:
     Lane(ID id, string type, shared_ptr<RefLine> refline_ptr) : id_(id), type_(type), refline_ptr_(refline_ptr)
@@ -166,6 +169,8 @@ class Road
     {
         return connect_to(road);
     }
+    // 通过交叉口连接道路
+    void connect_by_junction(Road& road, ID junction_id);
 };
 
 class Junction
@@ -210,14 +215,11 @@ class OpenDrive
    private:
     tinyxml2::XMLDocument doc_;
     Header                header_;
-    vector<Road>          roads_;
-    vector<Junction>      junctions_;
+    list<Road>            roads_;
+    list<Junction>        junctions_;
 
    public:
-    OpenDrive()
-    {
-        roads_.reserve(100);
-    }
+    OpenDrive() {}
     // 将OpenDrive对象转换为XML文件
     void to_xml(const string& filename);
     // 添加道路
